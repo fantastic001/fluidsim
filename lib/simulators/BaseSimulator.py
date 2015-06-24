@@ -11,7 +11,8 @@ class BaseSimulator(object):
         pass
 
     def integrate(self, dt, T): 
-        current = self.boundary
-        for i in range(T/dt):
+        current = self.grid
+        for i in range(int(T/dt)):
             current = self.step(current, dt)
+        return current
 
