@@ -21,4 +21,10 @@ class Cell(object):
             for j in range(m):
                 row.append(Cell(self.density, self.velocity, self.solid))
             mat.append(row)
-        return np.array(mat)
+        return mat
+
+    def __eq__(self, other):
+        return (self.density, self.solid) == (other.density, other.solid) and np.array_equal(self.velocity, other.velocity)
+
+    def __ne__(self, other):
+        return not self.__eq__(other)

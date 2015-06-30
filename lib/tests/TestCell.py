@@ -19,5 +19,6 @@ class TestCell(unittest.TestCase):
 
     def test_make_grid(self):
         cell = Cell(1.0)
+        expected = [[Cell(1.0) for i in range(5)] for j in range(5)]
         res = cell.make_grid(5,5)
-        self.assertEqual(res.shape (5,5))
+        self.assertEqual(res, expected)
