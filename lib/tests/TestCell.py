@@ -15,7 +15,7 @@ class TestCell(unittest.TestCase):
         cell = Cell(1.0, [0,0], True)
         self.assertEqual(1.0, cell.density)
         self.assertEqual(True, cell.solid)
-        nptest.array_almost_equal(cell.velocity, [0,0])
+        nptest.assert_array_almost_equal(cell.velocity, [0,0])
 
     def test_make_grid(self):
         cell = Cell(1.0)
