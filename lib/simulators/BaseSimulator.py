@@ -3,6 +3,13 @@ class BaseSimulator(object):
     
     def __init__(self, boundary):
         self.grid = boundary 
+        self.start()
+    
+    def start(self):
+        pass
+    
+    def finish(self):
+        pass
 
     def step(self, old, dt):
         """
