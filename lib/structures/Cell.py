@@ -21,4 +21,4 @@ class Cell(object():
             for j in range(m):
                 row.append(Cell(self.density, self.velocity, self.solid))
             mat.append(row)
-        return mat
+        return np.array(mat)
