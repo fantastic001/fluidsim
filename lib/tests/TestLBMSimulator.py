@@ -27,3 +27,12 @@ class TestLBMSimulator(unittest.TestCase):
         res = self.simulator.integrate(0.1, 1)
         self.assertEqual(res, res)
         self.simulator.finish()
+
+    def test_bounce_back(self):
+        # TODO Test bounce back when there is no motion, must stay the same 
+        pass 
+
+    def test_bounce_back_closed(self):
+        # TODO Test with closed boundary, inside must be the same 
+        pass
+
