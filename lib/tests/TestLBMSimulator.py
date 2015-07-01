@@ -20,6 +20,20 @@ class TestLBMSimulator(unittest.TestCase):
         res = self.simulator.step(self.grid, 1.0)
         # we have no motion, so we expect same situation after step 
         self.assertEqual(res, res)
+        
+        # test with boundaries 
+        fluid_cell = Cell(1.0, [0,0], False)
+        mat = fluid_cell.make_grid(100, 100)
+        for i in range(50, 60):
+            mat[i][50].solid = True
+            mat[i][60].solid = True
+        for j in range(50, 61):
+            mat[50][j].solid = True
+            mat[59][j].solid = True
+        mat[49][50].velocity = np.array([5, 5])
+        res = self.simulator.step(mat, 1.0)
+        self.assertEqual(mat[51][50].density, res[51][50].density)
+
         self.simulator.finish()
 
     def test_integration(self):
@@ -27,12 +41,4 @@ class TestLBMSimulator(unittest.TestCase):
         res = self.simulator.integrate(0.1, 1)
         self.assertEqual(res, res)
         self.simulator.finish()
-
-    def test_bounce_back(self):
-        # TODO Test bounce back when there is no motion, must stay the same 
-        pass 
-
-    def test_bounce_back_closed(self):
-        # TODO Test with closed boundary, inside must be the same 
-        pass
 
