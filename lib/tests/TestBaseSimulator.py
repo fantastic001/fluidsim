@@ -26,7 +26,7 @@ class TestBaseSimulator(unittest.TestCase):
     
     def setUp(self):
         self.grid = np.zeros([2,2])
-        self.simulator = SimpleSimulator(self.grid)
+        self.simulator = SimpleSimulator(self.grid, 1.0)
 
     def test_start(self):
         self.assertTrue(self.simulator.started)

@@ -1,8 +1,9 @@
 
 class BaseSimulator(object):
     
-    def __init__(self, boundary):
+    def __init__(self, boundary, viscosity):
         self.grid = boundary 
+        self.viscosity = viscosity
         self.start()
     
     def start(self):

@@ -14,7 +14,7 @@ class TestLBMSimulator(unittest.TestCase):
     def setUp(self):
         cell = Cell(1.0, [0,0], False) 
         self.grid = cell.make_grid(100,100)
-        self.simulator = LBMSimulator(self.grid)
+        self.simulator = LBMSimulator(self.grid, 3.5)
 
     def test_step(self):
         res = self.simulator.step(self.grid, 1.0)

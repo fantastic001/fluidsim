@@ -82,6 +82,7 @@ class LBMSimulator(BaseSimulator):
 
     def start(self):
         self.n, self.m = len(self.grid), len(self.grid[0])
+        self.omega = 3*self.viscosity + 0.5
         self.e = [np.array([x,y]) for x in [0,1,-1] for y in [0,1,-1]]
         self.f = np.array(self.traverse_grid(self.grid, self.n, self.m, self.calculate_feq))
 
@@ -96,9 +97,8 @@ class LBMSimulator(BaseSimulator):
         # copy feq to fin 
         # collision step 
         new = old.copy()
-        omega = 1 # TODO Make it dynamic
         feqs = np.array(self.traverse_grid(old, self.n, self.m, self.calculate_feq))
-        self.f = np.array(self.traverse_grid(old, self.n, self.m, self.stream_collisions, self.f, feqs, omega))
+        self.f = np.array(self.traverse_grid(old, self.n, self.m, self.stream_collisions, self.f, feqs, self.omega))
         # for every obstacle, noslip condition, reverse distribution function to opposite directions 
         self.f = np.array(self.traverse_grid(old, self.n, self.m, self.bounce_back, self.f))
         # streaming step 
