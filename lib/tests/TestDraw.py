@@ -28,3 +28,11 @@ class TestDraw(unittest.TestCase):
     def test_density_draw(self):
         density_draw(self.grid, 10, 10, lambda x,y: x**2 + y**2)
         self.assertEqual(self.grid[5][5].density, 50)
+
+    def test_border_draw(self):
+        border_draw(self.grid,10,10)
+        self.assertTrue(self.grid[0][0].solid)
+        self.assertTrue(self.grid[0][1].solid)
+        self.assertTrue(self.grid[1][0].solid)
+        self.assertTrue(self.grid[9][9].solid)
+        self.assertTrue(self.grid[9][2].solid)
