@@ -14,29 +14,24 @@ class SimpleSimulator(BaseSimulator):
     def finish(self):
         pass
 
-    def step(self, old, dt):
-        n,m = old.shape 
-        new = np.zeros([n,m])
+    def step(self, dt):
+        n,m = self.densities.shape
         for i in range(n):
             for j in range(m):
-                new[i][j] = old[i][j] + dt
-        return new 
+                self.densities[i][j] += dt
 
 class TestBaseSimulator(unittest.TestCase):
     
     def setUp(self):
-        self.grid = np.zeros([2,2])
-        self.simulator = SimpleSimulator(self.grid, 1.0)
+        self.p =np.zeros([2,2])
+        self.simulator = SimpleSimulator(self.p, np.zeros([2, 2, 2]), np.zeros([2,2]), 1.0)
 
     def test_start(self):
         self.assertTrue(self.simulator.started)
 
     def test_step(self):
-        res = self.simulator.step(self.grid, 1.0)
-        nptest.assert_array_almost_equal(np.ones([2, 2]), res)
+        self.simulator.step(1.0)
+        res, v, b = self.simulator.data()
+        nptest.assert_array_almost_equal(np.ones([2,2]), res)
         self.simulator.finish()
 
-    def test_integration(self):
-        res = self.simulator.integrate(0.1, 1)
-        nptest.assert_array_almost_equal(res, np.ones([2, 2]))
-        self.simulator.finish()

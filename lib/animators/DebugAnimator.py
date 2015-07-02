@@ -5,10 +5,10 @@ class DebugAnimator(BaseAnimator):
     def start(self, simulator):
         pass
 
-    def update(self, grid, iteration):
+    def update(self, p, v, b, iteration):
         print("Iteration " + str(iteration))
         f = open("iter-" + str(iteration) + ".txt", "w")
-        n,m = len(grid), len(grid[0])
+        n,m = p.shape
         for i in range(n):
             for j in range(m):
                 f.write("f[" + str(i) + "]["+str(j)+"] = ")

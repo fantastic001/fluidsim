@@ -8,12 +8,13 @@ class BaseAnimator(object):
     def start(self, simulator):
         pass
 
-    def update(self, grid, iteration):
+    def update(self, p, v, b, iteration):
         pass 
 
     def run(self, iters, step=0.1):
-        current = self.simulator.grid
-        self.update(current, 0)
+        p,v,b = self.simulator.data()
+        self.update(p, v, b, 0)
         for i in range(iters):
-            current = self.simulator.step(current, step)
-            self.update(current, i+1)
+            self.simulator.step(step)
+            p,v,b = self.simulator.data()
+            self.update(p, v, b, i+1)

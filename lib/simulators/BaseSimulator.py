@@ -1,9 +1,11 @@
 
 class BaseSimulator(object):
     
-    def __init__(self, boundary, viscosity):
-        self.grid = boundary 
+    def __init__(self, densities, velocities, boundary, viscosity):
+        self.boundaries = boundary 
         self.viscosity = viscosity
+        self.densities = densities 
+        self.velocities = velocities
         self.start()
     
     def start(self):
@@ -12,15 +14,11 @@ class BaseSimulator(object):
     def finish(self):
         pass
 
-    def step(self, old, dt):
+    def step(self, dt):
         """
         Must return new grid object 
         """
         pass
 
-    def integrate(self, dt, T): 
-        current = self.grid
-        for i in range(int(T/dt)):
-            current = self.step(current, dt)
-        return current
-
+    def data(self):
+        return (self.densities, self.velocities, self.boundaries)
