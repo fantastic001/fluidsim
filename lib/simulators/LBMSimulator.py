@@ -9,15 +9,13 @@ class LBMSimulator(BaseSimulator):
         return np.sum(self.f, axis=2)
     
     def calculate_velocity(self):
-        velocities = np.zeros([self.n, self.m, 2])
-        for i in range(self.n):
-            for j in range(self.m):
-                u = np.array([0, 0])
-                for a in range(9):
-                    u = u + self.e[a] * self.f[i][j][a]
-                velocity = u / self.densities[i][j]
-                velocities[i][j] = velocity
-        return velocities
+        u = np.zeros([self.n, self.m, 2])
+        for a in range(9):
+            u[:,:,0] = u[:,:,0] + self.e[a][0] * self.f[:,:,a]
+            u[:,:,1] = u[:,:,1] + self.e[a][1] * self.f[:,:,a]
+        u[:,:,0] /= self.densities 
+        u[:,:,1] /= self.densities
+        return u 
         
 
     def calculate_feq(self):
