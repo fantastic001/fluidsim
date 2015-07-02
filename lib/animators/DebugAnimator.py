@@ -14,10 +14,6 @@ class DebugAnimator(BaseAnimator):
                 f.write("f[" + str(i) + "]["+str(j)+"] = ")
                 for a in range(9):
                     f.write(str(self.simulator.f[i][j][a]) + " ")
-                    if i<10 and i>=5:
-                        # THIS IS OUT 
-                        if self.simulator.f[i][j][a] != self.simulator.f[i-5][j][a]:
-                            print("HERE WENT WRONG ON " + str(i) + " " + str(j))
                 f.write("\n")
         f.close()
 
