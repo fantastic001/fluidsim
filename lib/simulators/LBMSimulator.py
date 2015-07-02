@@ -53,7 +53,10 @@ class LBMSimulator(BaseSimulator):
     def stream_collisions(self, c, i, j, f, feq, omega):
         res = np.zeros(9)
         for a in range(9):
-            res[a] = f[i][j][a] - (f[i][j][a] - feq[i][j][a])/omega
+            if c.solid:
+                res[a] = f[i][j][a]
+            else:
+                res[a] = f[i][j][a] - (f[i][j][a] - feq[i][j][a])/omega
         return res
     
     def bounce_back(self, c, i, j, f):
@@ -76,8 +79,8 @@ class LBMSimulator(BaseSimulator):
         for i in range(self.n):
             for j in range(self.m):
                 for a in range(9):
-                    if self.is_bounded(i + self.e[a][0], j + self.e[a][1]):
-                        fin[i + self.e[a][0]][j + self.e[a][1]][a] = f[i][j][a]
+                    if self.is_bounded(i + self.e[a][1], j + self.e[a][0]):
+                        fin[i + self.e[a][1]][j + self.e[a][0]][a] = f[i][j][a]
         return fin
 
     def start(self):
