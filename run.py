@@ -1,5 +1,5 @@
 
-from lib.animators import ImageAnimator 
+from lib.animators import *
 from lib.simulators import LBMSimulator 
 from lib.structures import Cell 
 from lib.draw import * 
@@ -28,5 +28,6 @@ border_draw(grid,n,m)
 
 simulator = LBMSimulator(grid, 3.5)
 animator = ImageAnimator(simulator) 
-
+#debug = DebugAnimator(simulator)
 animator.run(100)
+#debug.run(100)
