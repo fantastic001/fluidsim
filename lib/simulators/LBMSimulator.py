@@ -35,20 +35,23 @@ class LBMSimulator(BaseSimulator):
         density = s
         return density
     
-    def calculate_velocity(self,c,i,j,f):
-        u = np.array([0,0])
-        for a in range(9):
-            u = u + self.e[a] * f[i][j][a]
-        velocity = u / c.density
-        return velocity
+    def calculate_velocity(self, grid,n, m, f):
+        for i in range(n):
+            for j in range(m):
+                u = np.array([0, 0])
+                for a in range(9):
+                    u = u + self.e[a] * f[i][j][a]
+                velocity = u / grid[i][j].density
+                grid[i][j].velocity = velocity
+        
 
-    def calculate_feq(self, c, i, j):
-        w = [4./9., 1./9., 1./9., 1./9., 1./36., 1./36., 1./9., 1./36., 1./36.]
-        u = c.velocity
-        res = np.zeros(9)
-        for a in range(9):
-            res[a] = w[a]*c.density*(1 + 3*(np.dot(self.e[a], u)) + (9./2.)*(np.dot(self.e[a], u))**2 - (3./2.)*np.dot(u, u))
-        return res
+    def calculate_feq(self, grid, n, m):
+        for i in range(n):
+            for j in range(m):
+                u = grid[i][j].velocity
+                for a in range(9):
+                    cu = np.dot(self.e[a], u)
+                    self.feq[i][j][a] = self.w[a]*grid[i][j].density*(1 + 3*cu + (9./2.)*(cu**2) - (3./2.)*(u[0]**2 + u[1]**2))
 
     def stream_collisions(self, c, i, j, f, feq, omega):
         res = np.zeros(9)
@@ -62,13 +65,12 @@ class LBMSimulator(BaseSimulator):
     def bounce_back(self, c, i, j, f):
         noslip = [0, 2, 1, 6, 8, 7, 3, 5, 4]
         res = np.zeros(9)
-        ftemp = f[i][j].copy()
         if c.solid:
             for a in range(9):
-                res[a] = ftemp[noslip[a]]
+                res[a] = f[i][j][noslip[a]]
         else:
             for a in range(9):
-                res[a] = ftemp[a]
+                res[a] = f[i][j][a]
         return res
     
     def is_bounded(self, i, j):
@@ -85,9 +87,12 @@ class LBMSimulator(BaseSimulator):
 
     def start(self):
         self.n, self.m = len(self.grid), len(self.grid[0])
+        self.w = [4./9., 1./9., 1./9., 1./9., 1./36., 1./36., 1./9., 1./36., 1./36.]
+        self.feq = np.zeros([self.n,self.m,9])
         self.omega = 3*self.viscosity + 0.5
         self.e = [np.array([x,y]) for x in [0,1,-1] for y in [0,1,-1]]
-        self.f = np.array(self.traverse_grid(self.grid, self.n, self.m, self.calculate_feq))
+        self.calculate_feq(self.grid, self.n, self.m)
+        self.f = self.feq.copy()
 
     def finish(self):
         pass
@@ -100,8 +105,8 @@ class LBMSimulator(BaseSimulator):
         # copy feq to fin 
         # collision step 
         new = old.copy()
-        feqs = np.array(self.traverse_grid(old, self.n, self.m, self.calculate_feq))
-        self.f = np.array(self.traverse_grid(old, self.n, self.m, self.stream_collisions, self.f, feqs, self.omega))
+        self.calculate_feq(old, self.n, self.m)
+        self.f = np.array(self.traverse_grid(old, self.n, self.m, self.stream_collisions, self.f, self.feq, self.omega))
         # for every obstacle, noslip condition, reverse distribution function to opposite directions 
         self.f = np.array(self.traverse_grid(old, self.n, self.m, self.bounce_back, self.f))
         # streaming step 
@@ -111,8 +116,5 @@ class LBMSimulator(BaseSimulator):
         for i in range(self.n):
             for j in range(self.m):
                 new[i][j].density = densities[i][j]
-        velocities = np.array(self.traverse_grid(old, self.n, self.m, self.calculate_velocity, self.f))
-        for i in range(self.n):
-            for j in range(self.m):
-                new[i][j].velocity = velocities[i][j]
+        self.calculate_velocity(new, self.n, self.m, self.f)
         return new
