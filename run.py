@@ -8,7 +8,7 @@ n,m = (100, 100)
 
 def v_func(x, y):
     if (x-50)**2 + (y-50)**2 <= 20**2:
-        np.array([x,y])
+        return np.array([x,y])
     else: 
         return np.array([0,0])
 
@@ -20,7 +20,7 @@ def b_func(x,y):
     return False
 
 p = np.zeros([n,m])
-p.fill(1.0)
+p.fill(5.0)
 
 v = np.zeros([n,m, 2])
 for i in range(n):
