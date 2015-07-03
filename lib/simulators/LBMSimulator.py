@@ -51,18 +51,18 @@ class LBMSimulator(BaseSimulator):
             fin[:,:,a] = np.roll(self.f[:,:,a], -self.e[a][1], axis=0)
             fin[:,:,a] = np.roll(fin[:,:,a], self.e[a][0], axis=1)
         # Restore ruined 
-        fin[-1,:,1] = self.f[-1,:,1]
-        fin[0,:,2] = self.f[0,:,2]
-        fin[:,0,3] = self.f[:,0,3]
-        fin[-1,:,4] = self.f[-1,:,4]
-        fin[:,0,4] = self.f[:,0,4]
-        fin[0,:,5] = self.f[0,:,5]
-        fin[:,0,5] = self.f[:,0,5]
-        fin[:,-1,6] = self.f[:,-1,6]
-        fin[-1,:,7] = self.f[-1,:,7]
-        fin[:,-1,7] = self.f[:,-1,7]
-        fin[0,:,8] = self.f[0,:,8]
-        fin[:,-1,8] = self.f[:,-1,8]
+        #fin[-1,:,1] = self.f[-1,:,1]
+        #fin[0,:,2] = self.f[0,:,2]
+        #fin[:,0,3] = self.f[:,0,3]
+        #fin[-1,:,4] = self.f[-1,:,4]
+        #fin[:,0,4] = self.f[:,0,4]
+        #fin[0,:,5] = self.f[0,:,5]
+        #fin[:,0,5] = self.f[:,0,5]
+        #fin[:,-1,6] = self.f[:,-1,6]
+        #fin[-1,:,7] = self.f[-1,:,7]
+        #fin[:,-1,7] = self.f[:,-1,7]
+        #fin[0,:,8] = self.f[0,:,8]
+        #fin[:,-1,8] = self.f[:,-1,8]
         self.f = fin.copy()
 
     def start(self):
