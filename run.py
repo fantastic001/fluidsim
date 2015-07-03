@@ -2,20 +2,28 @@
 from lib.animators import *
 from lib.simulators import LBMSimulator 
 
+import sys
 import numpy as np 
 
-n,m = (300, 300)
+if sys.argv[1] == "--help":
+    print("this width height velocity_x velocity_y num_iterations viscosity")
+    exit(0)
+
+m,n = int(sys.argv[1]), int(sys.argv[2])
+velocity_x, velocity_y = float(sys.argv[3]), float(sys.argv[4])
+num_iters = int(sys.argv[5])
+viscosity = float(sys.argv[6])
 
 def v_func(x, y):
-    if (x-m/2)**2 + (y-n/2)**2 <= (n/8)**2:
-        return np.array([0.4, 0.5])
+    if (x-m/2)**2 + (y-n/2)**2 <= 25**2:
+        return np.array([velocity_x, velocity_y])
     else: 
         return np.array([0,0])
 
 def b_func(x,y):
     if x == 0 or x == m or y == 0 or y==n:
         return True
-    if (x - m/2)**2 + (y-n/2)**2 <= (n/16)**2 or (x==int(0.1*m) or x==int(0.9*m) or y==int(0.1*n) or y==int(0.9*n)):
+    if (x - m/2)**2 + (y-n/2)**2 <= 8**2 or (x==int(0.1*m) or x==int(0.9*m) or y==int(0.1*n) or y==int(0.9*n)):
         return True
     return False
 
@@ -32,8 +40,8 @@ for i in range(n):
     for j in range(m):
         b[i,j] = b_func(j,i)
 
-simulator = LBMSimulator(p,v,b, 3.5)
+simulator = LBMSimulator(p,v,b, viscosity)
 animator = ImageAnimator(simulator) 
 #debug = DebugAnimator(simulator)
-animator.run(100)
-#debug.run(100)
+animator.run(num_iters)
+#debug.run(num_iters)
