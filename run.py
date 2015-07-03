@@ -19,6 +19,7 @@ animator_router = Router()
 animator_router.register(ImageAnimator, "density")
 animator_router.register(DebugAnimator, "debug")
 animator_router.register(SpeedAnimator, "speed")
+animator_router.register(WaveAnimator, "waves")
 
 animator_class = animator_router.route(sys.argv[7])
 
