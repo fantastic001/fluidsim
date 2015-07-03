@@ -39,11 +39,8 @@ class LBMSimulator(BaseSimulator):
     def bounce_back(self):
         noslip = [0, 2, 1, 6, 8, 7, 3, 5, 4]
         ftemp = self.f.copy()
-        for i in range(self.n):
-            for j in range(self.m):
-                if self.boundaries[i][j]:
-                    for a in range(9):
-                        self.f[i][j][a] = ftemp[i][j][noslip[a]]
+        for a in range(9):
+            self.f[:,:,a] = ftemp[:,:,noslip[a]]*self.boundaries + self.f[:,:,a]*self.non_boundaries
     
     def is_bounded(self, i, j):
         return i >= 0 and i < self.n and j >= 0 and j < self.m
