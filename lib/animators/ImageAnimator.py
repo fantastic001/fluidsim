@@ -14,4 +14,4 @@ class ImageAnimator(BaseAnimator):
         mat[:,:,1] = b
         mat[:,:,2] = np.clip(p, 0, maxDensity) / maxDensity
         mat[:,:,2] *= np.ones(b.shape) - b # do not color boundaries to blue 
-        plt.imsave("figure-" + str(t) + ".png", mat)
+        plt.imsave("frames/figure-" + str(t) + ".png", mat)

@@ -4,18 +4,18 @@ from lib.simulators import LBMSimulator
 
 import numpy as np 
 
-n,m = (100, 100)
+n,m = (300, 300)
 
 def v_func(x, y):
-    if (x-50)**2 + (y-50)**2 <= 20**2:
-        return np.array([x,y])
+    if (x-m/2)**2 + (y-n/2)**2 <= (n/8)**2:
+        return np.array([0.4, 0.5])
     else: 
         return np.array([0,0])
 
 def b_func(x,y):
     if x == 0 or x == m or y == 0 or y==n:
         return True
-    if (x - 50)**2 + (y-50)**2 <= 15**2 or (x==10 or x==90 or y==10 or y==90):
+    if (x - m/2)**2 + (y-n/2)**2 <= (n/16)**2 or (x==int(0.1*m) or x==int(0.9*m) or y==int(0.1*n) or y==int(0.9*n)):
         return True
     return False
 
