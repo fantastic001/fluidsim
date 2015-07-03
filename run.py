@@ -1,4 +1,5 @@
 
+from lib import Router
 from lib.animators import *
 from lib.simulators import LBMSimulator 
 
@@ -6,13 +7,20 @@ import sys
 import numpy as np 
 
 if sys.argv[1] == "--help":
-    print("this width height velocity_x velocity_y num_iterations viscosity")
+    print("this width height velocity_x velocity_y num_iterations viscosity animator")
     exit(0)
 
 m,n = int(sys.argv[1]), int(sys.argv[2])
 velocity_x, velocity_y = float(sys.argv[3]), float(sys.argv[4])
 num_iters = int(sys.argv[5])
 viscosity = float(sys.argv[6])
+
+animator_router = Router()
+animator_router.register(ImageAnimator, "density")
+animator_router.register(DebugAnimator, "debug")
+animator_router.register(SpeedAnimator, "speed")
+
+animator_class = animator_router.route(sys.argv[7])
 
 def v_func(x, y):
     if (x-m/2)**2 + (y-n/2)**2 <= 25**2:
@@ -41,7 +49,5 @@ for i in range(n):
         b[i,j] = b_func(j,i)
 
 simulator = LBMSimulator(p,v,b, viscosity)
-animator = ImageAnimator(simulator) 
-#debug = DebugAnimator(simulator)
+animator = animator_class(simulator) 
 animator.run(num_iters)
-#debug.run(num_iters)
