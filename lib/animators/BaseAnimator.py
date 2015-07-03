@@ -10,6 +10,9 @@ class BaseAnimator(object):
 
     def update(self, p, v, b, iteration):
         pass 
+    
+    def finish(self):
+        pass
 
     def run(self, iters, step=0.1):
         p,v,b = self.simulator.data()
@@ -18,3 +21,4 @@ class BaseAnimator(object):
             self.simulator.step(step)
             p,v,b = self.simulator.data()
             self.update(p, v, b, i+1)
+        self.finish()
