@@ -31,13 +31,10 @@ class LBMSimulator(BaseSimulator):
             self.feq[:,:, a] = wp*(one + 3*cu + 4.5*cu**2 - 1.5*u2)
 
     def stream_collisions(self):
-        for i in range(self.n):
-            for j in range(self.m):
-                for a in range(9):
-                    if self.boundaries[i][j]:
-                        self.f[i][j][a] = self.f[i][j][a]
-                    else:
-                        self.f[i][j][a] = self.f[i][j][a] - (self.f[i][j][a] - self.feq[i][j][a])/self.omega
+        for a in range(9):
+            # We are multplying with non_boundaries matrix which has ones on fluid nodes and 0's on solid nodes 
+            # that way we ensure that solid nodes are untouched
+            self.f[:,:,a] = self.f[:,:,a] - ((self.f[:,:,a] - self.feq[:,:,a])/self.omega) * self.non_boundaries 
     
     def bounce_back(self):
         noslip = [0, 2, 1, 6, 8, 7, 3, 5, 4]
@@ -53,11 +50,22 @@ class LBMSimulator(BaseSimulator):
 
     def streaming(self):
         fin = self.f.copy()
-        for i in range(self.n):
-            for j in range(self.m):
-                for a in range(9):
-                    if self.is_bounded(i + self.e[a][1], j + self.e[a][0]):
-                        fin[i + self.e[a][1]][j + self.e[a][0]][a] = self.f[i][j][a]
+        for a in range(1, 9):
+            fin[:,:,a] = np.roll(self.f[:,:,a], -self.e[a][1], axis=0)
+            fin[:,:,a] = np.roll(fin[:,:,a], self.e[a][0], axis=1)
+        # Restore ruined 
+        fin[-1,:,1] = self.f[-1,:,1]
+        fin[0,:,2] = self.f[0,:,2]
+        fin[:,0,3] = self.f[:,0,3]
+        fin[-1,:,4] = self.f[-1,:,4]
+        fin[:,0,4] = self.f[:,0,4]
+        fin[0,:,5] = self.f[0,:,5]
+        fin[:,0,5] = self.f[:,0,5]
+        fin[:,-1,6] = self.f[:,-1,6]
+        fin[-1,:,7] = self.f[-1,:,7]
+        fin[:,-1,7] = self.f[:,-1,7]
+        fin[0,:,8] = self.f[0,:,8]
+        fin[:,-1,8] = self.f[:,-1,8]
         self.f = fin.copy()
 
     def start(self):
@@ -68,6 +76,7 @@ class LBMSimulator(BaseSimulator):
         self.e = [np.array([x,y]) for x in [0,1,-1] for y in [0,1,-1]]
         self.calculate_feq()
         self.f = self.feq.copy()
+        self.non_boundaries = np.ones(self.boundaries.shape) - self.boundaries
 
     def finish(self):
         pass
