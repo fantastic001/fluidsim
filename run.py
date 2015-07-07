@@ -2,6 +2,7 @@
 from lib import Router
 from lib.animators import *
 from lib.simulators import LBMSimulator 
+from lib.draw import * 
 
 import sys
 import numpy as np 
@@ -40,14 +41,9 @@ p = np.zeros([n,m])
 p.fill(5.0)
 
 v = np.zeros([n,m, 2])
-for i in range(n):
-    for j in range(m):
-        v[i,j,:] = v_func(j,i)
-
+draw_from_function(v, n, m, v_func)
 b = np.zeros([n,m])
-for i in range(n):
-    for j in range(m):
-        b[i,j] = b_func(j,i)
+draw_from_function(b,n,m, b_func)
 
 simulator = LBMSimulator(p,v,b, viscosity)
 animator = animator_class(simulator) 
