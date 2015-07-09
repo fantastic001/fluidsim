@@ -25,17 +25,18 @@ animator_router.register(WaveAnimator, "waves")
 animator_class = animator_router.route(sys.argv[7])
 
 def v_func(x, y):
-    if (x-m/2)**2 + (y-n/2)**2 <= 25**2:
+    #if (x-m/2)**2 + (y-n/2)**2 <= 25**2:
+    if x > 2 and x < m-2 and y>2 and y<n-2:
         return np.array([velocity_x, velocity_y])
     else: 
         return np.array([0,0])
 
 def b_func(x,y):
-    if x == 0 or x == m or y == 0 or y==n:
-        return True
-    if (x - m/2)**2 + (y-n/2)**2 <= 8**2 or (x==int(0.1*m) or x==int(0.9*m) or y==int(0.1*n) or y==int(0.9*n)):
-        return True
-    return False
+    if x == 2 or x == m-2 or y == 2 or y==n-2:
+        return 1.0
+    #if (x - m/2)**2 + (y-n/2)**2 <= 8**2 or (x==int(0.1*m) or x==int(0.9*m) or y==int(0.1*n) or y==int(0.9*n)):
+    #    return True
+    return 0.0
 
 p = np.zeros([n,m])
 p.fill(5.0)
