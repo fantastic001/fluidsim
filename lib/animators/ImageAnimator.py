@@ -2,10 +2,12 @@
 from .BaseAnimator import * 
 
 import matplotlib.pyplot as plt 
+import matplotlib.animation as animation
 import numpy as np 
 class ImageAnimator(BaseAnimator):
     def start(self, simulator):
-        pass
+        self.fig = plt.figure()
+        self.imas = []
 
     def update(self, p, v, b, t):
         n,m = p.shape
@@ -14,4 +16,9 @@ class ImageAnimator(BaseAnimator):
         mat[:,:,1] = b
         mat[:,:,2] = np.clip(p, 0, maxDensity) / maxDensity
         mat[:,:,2] *= np.ones(b.shape) - b # do not color boundaries to blue 
-        plt.imsave("frames/figure-" + str(t) + ".png", mat)
+        plot = plt.imshow(mat)
+        self.imas.append([plot])
+
+    def finish(self):
+        ani = animation.ArtistAnimation(self.fig, self.imas, interval=50, blit=True,repeat_delay=1000)
+        plt.show()
