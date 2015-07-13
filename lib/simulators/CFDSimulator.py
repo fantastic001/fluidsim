@@ -12,6 +12,15 @@ class CFDSimulator(BaseSimulator):
         grad[:,:,1] = dy
         return grad
 
+    def compute_divergence(self, f, dx, dy):
+        p = f[:,:,0]
+        q = f[:,:,1]
+        dp = self.compute_gradient(p, dx, dy) 
+        dq = self.compute_gradient(q, dx, dy)
+        dpdx = dp[:,:,0]
+        dqdy = dq[:,:,1]
+        return dpdx + dqdy
+
     def start(self):
         pass
     
