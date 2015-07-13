@@ -13,9 +13,14 @@ class ImageAnimator(BaseAnimator):
         n,m = p.shape
         maxDensity = 10.
         mat = np.zeros([n,m,3])
-        mat[:,:,1] = b
-        mat[:,:,2] = np.clip(p, 0, maxDensity) / maxDensity
-        mat[:,:,2] *= np.ones(b.shape) - b # do not color boundaries to blue 
+        mat[:,:,0] = b
+        mat[:,:,2] = 0.75
+        mat[:,:,1] = np.clip(p, 0, maxDensity) / maxDensity
+        
+        # do not color boundaries
+        mat[:,:,2] *= np.ones(b.shape) - b 
+        mat[:,:,1] *= np.ones(b.shape) - b
+
         plot = plt.imshow(mat)
         self.imas.append([plot])
 
