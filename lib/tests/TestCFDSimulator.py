@@ -29,6 +29,22 @@ class TestCFDSimulator(unittest.TestCase):
         dfdy = grad[:,:,1]
         nptest.assert_array_almost_equal(dfdy, 2*np.ones(f.shape))
         nptest.assert_array_almost_equal(dfdx, np.ones(f.shape))
+        
+        y,x = np.mgrid[0:100:0.1, 0:100:0.1]
+        f = x + y**2
+        grad = simulator.compute_gradient(f, 0.1, 0.1)
+        dfdx = grad[:,:,0]
+        dfdy = grad[:,:,1]
+        nptest.assert_array_almost_equal(dfdy, 2*y, decimal=1)
+        nptest.assert_array_almost_equal(dfdx, np.ones(f.shape))
+        
+        y,x = np.mgrid[0:100:0.1, 0:100:0.1]
+        f = x**2 + y**2
+        grad = simulator.compute_gradient(f, 0.1, 0.1)
+        dfdx = grad[:,:,0]
+        dfdy = grad[:,:,1]
+        nptest.assert_array_almost_equal(dfdy, 2*y, decimal=3)
+        nptest.assert_array_almost_equal(dfdx, 2*x, decimal=3)
 
     def test_divergence(self):
         y,x = np.mgrid[0:100:0.1, 0:100:0.1]
@@ -43,3 +59,18 @@ class TestCFDSimulator(unittest.TestCase):
         f[:,:,1] = x
         divergence = simulator.compute_divergence(f, 0.1, 0.1)
         nptest.assert_array_almost_equal(divergence, np.zeros(x.shape))
+        
+        f[:,:,0] = 5*x 
+        f[:,:,1] = y
+        divergence = simulator.compute_divergence(f, 0.1, 0.1)
+        nptest.assert_array_almost_equal(divergence, 6*np.ones(x.shape))
+
+    def test_laplacian(self):
+        y,x = np.mgrid[0:100:0.1, 0:100:0.1]
+        f = np.zeros([x.shape[0], x.shape[1], 2])
+        f[:,:,0] = x**2
+        f[:,:,1] = y**2
+        expected = 2*np.ones([f.shape[0], f.shape[1], 2])
+        simulator = CFDSimulator(0,0,0,0)
+        res = simulator.compute_laplacian(f, 0.1, 0.1)
+        nptest.assert_array_almost_equal(expected, res, decimal=3)
