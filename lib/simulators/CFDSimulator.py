@@ -41,10 +41,14 @@ class CFDSimulator(BaseSimulator):
         res[:,:,1] = dqxx + dqyy
         return res 
 
-    def compute_acc(self, p, v, dx, dy):
+    def compute_acc(self, p, v, f, dx, dy):
         div_v = self.compute_divergence(v, dx, dy)
         div_v_v = div_v * v 
         grad_p = self.compute_gradient(p, dx, dy)
+        laplacian_v = self.compute_laplacian(v, dx, dy)
+        a = -div_v_v - grad_p + self.viscosity*laplacian_v + f 
+        return a
+
 
 
     def start(self):
