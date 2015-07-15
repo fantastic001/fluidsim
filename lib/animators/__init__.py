@@ -3,3 +3,4 @@ from .ImageAnimator import *
 from .DebugAnimator import * 
 from .SpeedAnimator import * 
 from .WaveAnimator import * 
+from .FieldAnimator import * 
