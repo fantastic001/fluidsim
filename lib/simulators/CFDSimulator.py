@@ -57,26 +57,45 @@ class CFDSimulator(BaseSimulator):
         self.n, self.m = (self.velocities.shape[0]*self.h, self.velocities.shape[1]*self.h)
         self.forces = np.zeros([int(self.n/self.h), int(self.m/self.h), 2]) # Will be removed and modeled differently
         self.old = self.velocities.copy()
+        
+        self.y,self.x = np.mgrid[0:self.n:self.h, 0:self.m:self.h]
+        self.ax = np.arange(0, self.m, self.h)
+        self.ay = np.arange(0, self.n, self.h)
+        # Computing laplacian operator 
+        self.size = int(self.n/self.h) * int(self.m / self.h)
+        self.A = scipy.sparse.csc_matrix((self.size, self.size))
+        ne_conditions = [np.array([0,1]), np.array([0,-1]), np.array([1, 0]), np.array([-1, 0])]
+        for ix1 in self.ax:
+            for iy1 in self.ay:
+                iix1 = int(ix1/self.h)
+                iiy1 = int(iy1/self.h)
+                s = (self.m * iiy1) + iix1
+                self.A[s,s] = -4
+                edges = self.is_edge(iiy1, iix1)
+                for edge in edges:
+                    if edge:
+                        self.A[s, s] = self.A[s,s] + 1
+                for condition in ne_conditions:
+                    iiy2 = iiy1 + condition[1]
+                    iix2 = iix1 + condition[0]
+                    if not self.is_out(iiy2, iix2):
+                        s2 = (self.m * iiy2) + iix2
+                        self.A[s, s2] = 1
+                        self.A[s2, s] = 1
+        self.I = scipy.sparse.eye(self.size)
 
     def finish(self):
         pass
 
     def step(self, dt):
-        # Setting some stuff for later computation
-        #self.old = self.velocities.copy()
-        h = self.h
-        y,x = np.mgrid[0:self.n:h, 0:self.m:h]
-        ax = np.arange(0, self.m, h)
-        ay = np.arange(0, self.n, h)
-
         w0 = self.velocities 
         w1 = w0 + dt * self.forces 
         w2 = w1.copy()
         # compute velocity at past 
-        w1p0 = interpolate.RectBivariateSpline(ay, ax, self.old[:,:,0])
-        w1p1 = interpolate.RectBivariateSpline(ay, ax, self.old[:,:,1])
-        for j in ax:
-            for i in ay:
+        w1p0 = interpolate.RectBivariateSpline(self.ay, self.ax, self.old[:,:,0])
+        w1p1 = interpolate.RectBivariateSpline(self.ay, self.ax, self.old[:,:,1])
+        for j in self.ax:
+            for i in self.ay:
                 i_ = i - dt*w1[i,j, 0]
                 j_ = j - dt*w1[i,j, 1]
                 
@@ -86,10 +105,8 @@ class CFDSimulator(BaseSimulator):
                 
                 w2[i,j,0] = w1p0(i_, j_)
                 w2[i,j,1] = w1p1(i_, j_)
-        size = int(self.n/h) * int(self.m / h)
         
         # calculating diffusion 
-        A = scipy.sparse.csc_matrix((size, size))
         """
         for iy in ay:
             for ix in ax:
@@ -150,40 +167,20 @@ class CFDSimulator(BaseSimulator):
                     A[s, s4] = -1/h**2
                     A[s, s] = 1 + 4/(dt * self.viscosity *h**2)
         """
-        ne_conditions = [np.array([0,1]), np.array([0,-1]), np.array([1, 0]), np.array([-1, 0])]
-        for ix1 in ax:
-            for iy1 in ay:
-                iix1 = int(ix1/h)
-                iiy1 = int(iy1/h)
-                s = (self.m * iiy1) + iix1
-                A[s,s] = -4
-                edges = self.is_edge(iiy1, iix1)
-                for edge in edges:
-                    if edge:
-                        A[s, s] = A[s,s] + 1
-                for condition in ne_conditions:
-                    iiy2 = iiy1 + condition[1]
-                    iix2 = iix1 + condition[0]
-                    if not self.is_out(iiy2, iix2):
-                        s2 = (self.m * iiy2) + iix2
-                        A[s, s2] = 1
-                        A[s2, s] = 1
-        I = scipy.sparse.eye(size)
-        # DEBUG A is singular 
-        # calculating w3 
-        w2_x = w2[:,:,0].reshape(size)
-        w2_y = w2[:,:,1].reshape(size)
-        w30 = scipy.sparse.linalg.spsolve(I - (self.viscosity * dt * h**2)*A, w2_x)
-        w31 = scipy.sparse.linalg.spsolve(I - (self.viscosity * dt * h**2)*A, w2_y)
-        w3 = np.zeros([self.n/h, self.m/h, 2])
-        w3[:,:,0] = w30.reshape([self.n/h, self.m/h])
-        w3[:,:,1] = w31.reshape([self.n/h, self.m/h])
+        # calculating w3
+        w2_x = w2[:,:,0].reshape(self.size)
+        w2_y = w2[:,:,1].reshape(self.size)
+        w30 = scipy.sparse.linalg.spsolve(self.I - (self.viscosity * dt * self.h**2)*self.A, w2_x)
+        w31 = scipy.sparse.linalg.spsolve(self.I - (self.viscosity * dt * self.h**2)*self.A, w2_y)
+        w3 = np.zeros([self.n/self.h, self.m/self.h, 2])
+        w3[:,:,0] = w30.reshape([self.n/self.h, self.m/self.h])
+        w3[:,:,1] = w31.reshape([self.n/self.h, self.m/self.h])
 
         # OH YEAH ! 
         # i have w3, now I can compute pressure, finally 
         # Qp = div_w3
-        div_w3 = self.compute_divergence(w3, h, h)
-        div_w3_reshaped = div_w3.reshape(size)
+        div_w3 = self.compute_divergence(w3, self.h, self.h)
+        div_w3_reshaped = div_w3.reshape(self.size)
         """
         Q = scipy.sparse.dok_matrix((size, size))
         for ix in ax:
@@ -217,9 +214,9 @@ class CFDSimulator(BaseSimulator):
                     Q[s, s3] = 1/h**2
                     Q[s, s4] = 1/h**2
         """
-        p_ = scipy.sparse.linalg.spsolve(A / h**2, div_w3_reshaped)
-        p = p_.reshape(self.n/h, self.m/h)
-        grad_p = self.compute_gradient(p, h, h)
+        p_ = scipy.sparse.linalg.spsolve(self.A / self.h**2, div_w3_reshaped)
+        p = p_.reshape(self.n/self.h, self.m/self.h)
+        grad_p = self.compute_gradient(p, self.h, self.h)
         w4 = w3 - grad_p 
         self.velocities = w4 
 
