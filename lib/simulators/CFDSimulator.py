@@ -47,15 +47,17 @@ class CFDSimulator(BaseSimulator):
         return res 
 
     def is_edge(self, i,j):
-        return [i == 0, j == self.m, i == self.n, j == 0]
+        return [i == 0, j == self.m/self.h - 1, i == self.n/self.h - 1, j == 0]
 
     def is_out(self,i,j):
-        return i < 0 or i == self.n or j < 0 or j == self.m
+        return i < 0 or i == self.n/self.h or j < 0 or j == self.m/self.h 
 
     def start(self):
         self.h = 0.1
         self.n, self.m = (self.velocities.shape[0]*self.h, self.velocities.shape[1]*self.h)
         self.forces = np.zeros([int(self.n/self.h), int(self.m/self.h), 2]) # Will be removed and modeled differently
+        # Set forces :)))
+        self.forces[:,0:2,0].fill(0.0001)
         self.old = self.velocities.copy()
         
         self.y,self.x = np.mgrid[0:self.n:self.h, 0:self.m:self.h]
@@ -65,11 +67,15 @@ class CFDSimulator(BaseSimulator):
         self.size = int(self.n/self.h) * int(self.m / self.h)
         self.A = scipy.sparse.csc_matrix((self.size, self.size))
         ne_conditions = [np.array([0,1]), np.array([0,-1]), np.array([1, 0]), np.array([-1, 0])]
-        for ix1 in self.ax:
-            for iy1 in self.ay:
+        print("ax = %d" % len(self.ax))
+        for iy1 in self.ay:
+            for ix1 in self.ax:
                 iix1 = int(ix1/self.h)
                 iiy1 = int(iy1/self.h)
-                s = (self.m * iiy1) + iix1
+                s = (self.m * iiy1)/self.h + iix1
+                #print("ix iy = %d %d" % (ix1, iy1))
+                #print("iix1, iiy1 = %d %d" % (iix1, iiy1))
+                print("index %d" % s)
                 self.A[s,s] = -4
                 edges = self.is_edge(iiy1, iix1)
                 for edge in edges:
@@ -79,17 +85,29 @@ class CFDSimulator(BaseSimulator):
                     iiy2 = iiy1 + condition[1]
                     iix2 = iix1 + condition[0]
                     if not self.is_out(iiy2, iix2):
-                        s2 = (self.m * iiy2) + iix2
+                        s2 = (self.m * iiy2)/self.h + iix2
                         self.A[s, s2] = 1
                         self.A[s2, s] = 1
+
         self.I = scipy.sparse.eye(self.size)
+        print("size = %d" % self.size)
+        print("laplacian = ")
+        print(self.A.todense())
+        #input()
 
     def finish(self):
         pass
 
     def step(self, dt):
+        print("Starting step")
         w0 = self.velocities 
+        print("w0")
+        print(w0[:,:,0])
+        #input()
         w1 = w0 + dt * self.forces 
+        print("w1")
+        print(w1[:,:,0])
+        #input()
         w2 = w1.copy()
         # compute velocity at past 
         w1p0 = interpolate.RectBivariateSpline(self.ay, self.ax, self.old[:,:,0])
@@ -105,7 +123,9 @@ class CFDSimulator(BaseSimulator):
                 
                 w2[i,j,0] = w1p0(i_, j_)
                 w2[i,j,1] = w1p1(i_, j_)
-        
+        print("w2")
+        print(w2[:,:,0])
+        #input()
         # calculating diffusion 
         """
         for iy in ay:
@@ -175,7 +195,9 @@ class CFDSimulator(BaseSimulator):
         w3 = np.zeros([self.n/self.h, self.m/self.h, 2])
         w3[:,:,0] = w30.reshape([self.n/self.h, self.m/self.h])
         w3[:,:,1] = w31.reshape([self.n/self.h, self.m/self.h])
-
+        print("w3")
+        print(w3[:,:,0])
+        #input()
         # OH YEAH ! 
         # i have w3, now I can compute pressure, finally 
         # Qp = div_w3
@@ -218,6 +240,9 @@ class CFDSimulator(BaseSimulator):
         p = p_.reshape(self.n/self.h, self.m/self.h)
         grad_p = self.compute_gradient(p, self.h, self.h)
         w4 = w3 - grad_p 
+        print("w4")
+        print(w4[:,:,0])
+        #input()
         self.velocities = w4 
 
         # copy w1 to old 
