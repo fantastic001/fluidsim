@@ -11,7 +11,7 @@ if sys.argv[1] == "--help":
     print("this width height velocity_x velocity_y num_iterations viscosity animator")
     exit(0)
 
-h = 0.1
+h = 1.0
 m,n = int(sys.argv[1]), int(sys.argv[2])
 velocity_x, velocity_y = float(sys.argv[3]), float(sys.argv[4])
 num_iters = int(sys.argv[5])
@@ -52,4 +52,4 @@ draw_from_function(b,N,M, b_func)
 
 simulator = CFDSimulator(p,v,b, viscosity)
 animator = animator_class(simulator) 
-animator.run(num_iters)
+animator.run(num_iters, step=1)

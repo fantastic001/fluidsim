@@ -11,11 +11,11 @@ class ImageAnimator(BaseAnimator):
 
     def update(self, p, v, b, t):
         n,m = p.shape
-        maxDensity = 10.
+        maxDensity = 20e+12
         mat = np.zeros([n,m,3])
         mat[:,:,0] = b
         mat[:,:,2] = 0.75
-        mat[:,:,1] = np.clip(p, 0, maxDensity) / maxDensity
+        mat[:,:,1] = np.clip(p, -1e+06, maxDensity) / maxDensity
         
         # do not color boundaries
         mat[:,:,2] *= np.ones(b.shape) - b 
