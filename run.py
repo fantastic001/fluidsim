@@ -52,4 +52,4 @@ draw_from_function(b,N,M, b_func)
 
 simulator = CFDSimulator(p,v,b, viscosity)
 animator = animator_class(simulator) 
-animator.run(num_iters, step=1)
+animator.run(num_iters, step=0.01)

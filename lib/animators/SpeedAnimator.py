@@ -9,6 +9,7 @@ class SpeedAnimator(BaseAnimator):
         pass
 
     def update(self, p, v, b, t):
+        print("Iteration %d" % t)
         n,m = p.shape
         nb = np.ones(b.shape) - b
         maximum = 1.

@@ -8,6 +8,8 @@ import scipy.interpolate as interpolate
 import scipy.sparse
 import scipy.sparse.linalg
 
+import matplotlib.pyplot as plt 
+
 class CFDSimulator(BaseSimulator):
 
     def compute_gradient(self, a, dx, dy):
@@ -53,11 +55,14 @@ class CFDSimulator(BaseSimulator):
         return i < 0 or i == self.n/self.h or j < 0 or j == self.m/self.h 
 
     def start(self):
+        self.deltas = []
+
         self.h = 1.0
         self.n, self.m = (self.velocities.shape[0]*self.h, self.velocities.shape[1]*self.h)
         self.forces = np.zeros([int(self.n/self.h), int(self.m/self.h), 2]) # Will be removed and modeled differently
         # Set forces :)))
-        self.forces[:,0:5,0].fill(0.01)
+        for fi in range(int(self.n/self.h)):
+            self.forces[fi, :, 0] = np.linspace(100, 0, self.m/self.h)
         
         self.y,self.x = np.mgrid[0:self.n:self.h, 0:self.m:self.h]
         self.ax = np.arange(0, self.m, self.h)
@@ -104,21 +109,62 @@ class CFDSimulator(BaseSimulator):
         #print("laplacian = ")
         #print(self.A.todense())
         #input()
+        self.bmap = np.zeros([self.n/self.h, self.m/self.h])
+        self.iteration = 0
+    
+    def advection(self, u):
+        u_x = u[:,:,0]
+        u_y = u[:,:,1]
+        duxdx = self.compute_gradient(u[:,:,0], self.h, self.h)[:,:,0]
+        duydx = self.compute_gradient(u[:,:,1], self.h, self.h)[:,:,0]
+        duxdy = self.compute_gradient(u[:,:,0], self.h, self.h)[:,:,1]
+        duydy = self.compute_gradient(u[:,:,1], self.h, self.h)[:,:,1]
+        
+        dudx = u.copy()
+        dudy = u.copy()
+        dudx[:,:,0] = duxdx
+        dudx[:,:,1] = duydx
+        dudy[:,:,0] = duxdy
+        dudy[:,:,1] = duydy
+        dudy = np.array([duxdy, duydy])
+        s = u.copy()
+        s[:,:,0] = u_x * duxdx + u_y * duxdy
+        s[:,:,1] = u_x * duydx + u_y * duydy
+        return s
+
+
+    def compute_speed(self, v):
+        return np.sqrt(v[:, :, 0]**2 + v[:, :, 1]**2)
 
     def finish(self):
+        #plt.plot(np.diff(self.deltas))
+        #plt.show()
         pass
 
     def step(self, dt):
-        print("Starting step")
+        #print("Starting step")
         w0 = self.velocities 
         print("w0")
         print(w0[:,:,0])
+        #self.deltas.append(self.compute_speed(w0))
+        
+        #plt.imsave("debug-%d.png" % self.iteration, self.compute_speed(w0) - self.bmap, vmax=2, vmin=-2)
+        #self.iteration += 1
+        #self.bmap = self.compute_speed(w0)
+        
         #input()
         w1 = w0 + dt * self.forces 
         print("w1")
         print(w1[:,:,0])
-        input()
+        #self.deltas.append(self.compute_speed(w1))
+        
+        #plt.imsave("debug-%d.png" % self.iteration, self.compute_speed(w1) - self.bmap, vmax=2, vmin=-2)
+        #self.iteration += 1
+        #self.bmap = self.compute_speed(w1)
+        
+        #input()
         w2 = w1.copy()
+        """
         for j in self.ax:
             for i in self.ay:
                 psi = self.path[i,j,1]
@@ -133,7 +179,15 @@ class CFDSimulator(BaseSimulator):
         self.path[:,:,1] = self.path[:,:,1] + w1[:,:,1]*dt
         print("w2")
         print(w2[:,:,0])
-        input()
+        """
+        w2 =  w1 - dt * self.advection(w1)
+        print("w2")
+        print(w2[:,:,0])
+        #plt.imsave("debug-%d.png" % self.iteration, self.compute_speed(w2) - self.bmap, vmax=2, vmin=-2)
+        #self.iteration += 1
+        #self.bmap = self.compute_speed(w2)
+        
+        #input()
         # calculating diffusion 
         """
         for iy in ay:
@@ -201,11 +255,17 @@ class CFDSimulator(BaseSimulator):
         w30, info = scipy.sparse.linalg.bicg(self.I - (self.viscosity * dt)*self.A, w2_x)
         w31, info = scipy.sparse.linalg.bicg(self.I - (self.viscosity * dt)*self.A, w2_y)
         w3 = np.zeros([self.n/self.h, self.m/self.h, 2])
-        w3[:,:,0] = w30.reshape([self.n/self.h, self.m/self.h])
-        w3[:,:,1] = w31.reshape([self.n/self.h, self.m/self.h])
+        #w3[:,:,0] = w30.reshape([self.n/self.h, self.m/self.h])
+        #w3[:,:,1] = w31.reshape([self.n/self.h, self.m/self.h])
+        w3 = w2 + dt * self.viscosity * self.compute_laplacian(w2, self.h, self.h)
         print("w3")
         print(w3[:,:,0])
-        input()
+        
+        #plt.imsave("debug-%d.png" % self.iteration, self.compute_speed(w3) - self.bmap, vmax=2, vmin=-2)
+        #self.iteration += 1
+        #self.bmap = self.compute_speed(w3)
+        
+        #input()
         # OH YEAH ! 
         # i have w3, now I can compute pressure, finally 
         # Qp = div_w3
@@ -257,7 +317,7 @@ class CFDSimulator(BaseSimulator):
         w4 = w3 - grad_p 
         print("w4")
         print(w4[:,:,0])
-        input()
+        #input()
         self.velocities = w4 
 
         # copy w1 to old 
@@ -272,4 +332,8 @@ class CFDSimulator(BaseSimulator):
         print(self.compute_divergence(w3, self.h, self.h))
         print("div v")
         print(self.compute_divergence(self.velocities, self.h, self.h))
-        input()
+        #input()
+        plt.imsave("debug-%d.png" % self.iteration, self.compute_speed(w4) - self.bmap, vmax=2, vmin=-2)
+        self.iteration += 1
+        self.bmap = self.compute_speed(w4)
+        self.forces.fill(0)
