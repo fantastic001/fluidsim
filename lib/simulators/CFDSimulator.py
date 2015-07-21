@@ -104,13 +104,13 @@ class CFDSimulator(BaseSimulator):
         self.ay = np.arange(0, self.n, self.h)
 
         # set path 
-        self.path = np.zeros([self.n / self.h, self.m / self.h, 2])
+        self.path = np.zeros([int(self.n / self.h), int(self.m / self.h), 2])
         for py in self.ay:
             for px in self.ax:
-                self.path[py/self.h, px/self.h, 0] = px
-                self.path[py/self.h, px/self.h, 1] = py
+                self.path[int(py/self.h), int(px/self.h), 0] = px
+                self.path[int(py/self.h), int(px/self.h), 1] = py
         self.A, self.I, self.size = self.get_laplacian_operator()
-        self.bmap = np.zeros([self.n/self.h, self.m/self.h])
+        self.bmap = np.zeros([int(self.n/self.h), int(self.m/self.h)])
         self.iteration = 0
     
     def advection_primitive(self, u):

@@ -81,8 +81,8 @@ class TestCFDSimulator(unittest.TestCase):
         simulator = CFDSimulator(np.zeros([10,10]),np.zeros([10,10, 2]),np.zeros([10,10]),0)
         # construct grid first 
         y, x = np.mgrid[0:10:simulator.h, 0:10:simulator.h]
-        u = np.zeros([10/simulator.h, 10/simulator.h, 2])
-        expected = np.zeros([10/simulator.h,10/simulator.h, 2])
+        u = np.zeros([int(10/simulator.h), int(10/simulator.h), 2])
+        expected = np.zeros([int(10/simulator.h),int(10/simulator.h), 2])
         
         n,m = 10/simulator.h, 10/simulator.h
         # testing primitive advection first 
