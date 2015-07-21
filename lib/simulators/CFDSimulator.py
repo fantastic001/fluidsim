@@ -129,8 +129,8 @@ class CFDSimulator(BaseSimulator):
         dudy[:,:,1] = duydy
         dudy = np.array([duxdy, duydy])
         s = u.copy()
-        s[:,:,0] = u_x * duxdx + u_y * duxdy
-        s[:,:,1] = u_x * duydx + u_y * duydy
+        s[:,:,0] = u_x * duxdx + u_y * duydx
+        s[:,:,1] = u_x * duxdy + u_y * duydy
         return s
 
     def add_force(self, v, dt, f):
