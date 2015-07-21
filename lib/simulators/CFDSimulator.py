@@ -160,9 +160,9 @@ class CFDSimulator(BaseSimulator):
         w2_y = w2[:,:,1].reshape(self.size)
         w30, info = scipy.sparse.linalg.bicg(self.I - (self.viscosity * dt)*self.A, w2_x)
         w31, info = scipy.sparse.linalg.bicg(self.I - (self.viscosity * dt)*self.A, w2_y)
-        w3 = np.zeros([self.n/self.h, self.m/self.h, 2])
-        w3[:,:,0] = w30.reshape([self.n/self.h, self.m/self.h])
-        w3[:,:,1] = w31.reshape([self.n/self.h, self.m/self.h])
+        w3 = np.zeros([int(self.n/self.h), int(self.m/self.h), 2])
+        w3[:,:,0] = w30.reshape([int(self.n/self.h), int(self.m/self.h)])
+        w3[:,:,1] = w31.reshape([int(self.n/self.h), int(self.m/self.h)])
         return w3
 
     def projection(self, w3, dt):
