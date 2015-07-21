@@ -21,7 +21,9 @@ class TestCFDSimulator(unittest.TestCase):
         """
 
     def test_gradient(self):
-        simulator = CFDSimulator(0,0,0,0) # we do not need to specify fluid properties for this test
+        v0 = np.zeros([100, 100, 2])
+        p0 = np.zeros([100,100])
+        simulator = CFDSimulator(p0, v0, p0,0) # we do not need to specify fluid properties for this test
         y,x = np.mgrid[0:100:0.1, 0:100:0.1]
         f = x + 2*y 
         grad = simulator.compute_gradient(f, 0.1, 0.1)
@@ -51,7 +53,7 @@ class TestCFDSimulator(unittest.TestCase):
         f = np.zeros([x.shape[0], x.shape[1], 2])
         f[:, :, 0] = x
         f[:,:,1] = y
-        simulator = CFDSimulator(0,0,0,0)
+        simulator = CFDSimulator(np.zeros([100,100]),np.zeros([100,100,2]),np.zeros([100,100]),0)
         divergence = simulator.compute_divergence(f, 0.1, 0.1)
         nptest.assert_array_almost_equal(divergence, 2*np.ones(x.shape))
 
@@ -71,6 +73,40 @@ class TestCFDSimulator(unittest.TestCase):
         f[:,:,0] = x**2
         f[:,:,1] = y**2
         expected = 2*np.ones([f.shape[0], f.shape[1], 2])
-        simulator = CFDSimulator(0,0,0,0)
+        simulator = CFDSimulator(np.zeros([100,100]),np.zeros([100,100,2]),np.zeros([100,100]),0)
         res = simulator.compute_laplacian(f, 0.1, 0.1)
         nptest.assert_array_almost_equal(expected, res, decimal=3)
+
+    def test_advection(self):
+        simulator = CFDSimulator(np.zeros([10,10]),np.zeros([10,10, 2]),np.zeros([10,10]),0)
+        # construct grid first 
+        y, x = np.mgrid[0:10:simulator.h, 0:10:simulator.h]
+        u = np.zeros([10/simulator.h, 10/simulator.h, 2])
+        expected = np.zeros([10/simulator.h,10/simulator.h, 2])
+        
+        n,m = 10/simulator.h, 10/simulator.h
+        # testing primitive advection first 
+        u[:,:,0] = 100*np.ones([n,m])
+        u[:,:,1] = 100*np.ones([n,m])
+        res = simulator.advection_primitive(u)
+        nptest.assert_array_almost_equal(res, expected)
+
+        u[:,:,0] = x
+        u[:,:,1] = y
+        expected[:,:,0] = x
+        expected[:,:,1] = y
+        res = simulator.advection_primitive(u)
+        nptest.assert_array_almost_equal(res, expected)
+
+        u[:,:,0] = x*y
+        u[:,:,1] = x*y
+        expected[:,:,0] = 2*x*(y**2)
+        expected[:,:,1] = 2*y*(x**2)
+        res = simulator.advection_primitive(u)
+        nptest.assert_allclose(res, expected, rtol=0.1)
+
+    def test_diffusion(self):
+        pass
+
+    def test_projection(self):
+        pass
