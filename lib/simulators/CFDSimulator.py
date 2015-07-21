@@ -11,6 +11,10 @@ import scipy.sparse.linalg
 import matplotlib.pyplot as plt 
 
 class CFDSimulator(BaseSimulator):
+    
+    DEBUG = True
+    DEBUG_BREAK = False
+    DEBUG_PLOT = False
 
     def compute_gradient(self, a, dx, dy):
         dy, dx = np.gradient(a, dy, dx, edge_order=2)
@@ -53,6 +57,37 @@ class CFDSimulator(BaseSimulator):
 
     def is_out(self,i,j):
         return i < 0 or i == self.n/self.h or j < 0 or j == self.m/self.h 
+    
+    def get_laplacian_operator(self):
+        # Computing laplacian operator 
+        size = int(self.n/self.h) * int(self.m / self.h)
+        A = scipy.sparse.dok_matrix((size, size))
+        ne_conditions = [np.array([0,1]), np.array([0,-1]), np.array([1, 0]), np.array([-1, 0])]
+        #print("ax = %d" % len(self.ax))
+        for iy1 in self.ay:
+            for ix1 in self.ax:
+                iix1 = int(ix1/self.h)
+                iiy1 = int(iy1/self.h)
+                s = (self.m * iiy1)/self.h + iix1
+                #print("ix iy = %d %d" % (ix1, iy1))
+                #print("iix1, iiy1 = %d %d" % (iix1, iiy1))
+                #print("index %d" % s)
+                A[s,s] = -4
+                edges = self.is_edge(iiy1, iix1)
+                for edge in edges:
+                    if edge:
+                        A[s, s] = A[s,s] + 1
+                for condition in ne_conditions:
+                    iiy2 = iiy1 + condition[1]
+                    iix2 = iix1 + condition[0]
+                    if not self.is_out(iiy2, iix2):
+                        s2 = (self.m * iiy2)/self.h + iix2
+                        A[s, s2] = 1
+                        A[s2, s] = 1
+                        #if s == 1:
+                        #    print("CONDITION %d %d" % (s, s2))
+        I = scipy.sparse.eye(size)
+        return (A, I, size)
 
     def start(self):
         self.deltas = []
@@ -74,45 +109,11 @@ class CFDSimulator(BaseSimulator):
             for px in self.ax:
                 self.path[py/self.h, px/self.h, 0] = px
                 self.path[py/self.h, px/self.h, 1] = py
-        # Computing laplacian operator 
-        self.size = int(self.n/self.h) * int(self.m / self.h)
-        self.A = scipy.sparse.dok_matrix((self.size, self.size))
-        ne_conditions = [np.array([0,1]), np.array([0,-1]), np.array([1, 0]), np.array([-1, 0])]
-        #print("ax = %d" % len(self.ax))
-        for iy1 in self.ay:
-            for ix1 in self.ax:
-                iix1 = int(ix1/self.h)
-                iiy1 = int(iy1/self.h)
-                s = (self.m * iiy1)/self.h + iix1
-                #print("ix iy = %d %d" % (ix1, iy1))
-                #print("iix1, iiy1 = %d %d" % (iix1, iiy1))
-                #print("index %d" % s)
-                self.A[s,s] = -4
-                edges = self.is_edge(iiy1, iix1)
-                for edge in edges:
-                    if edge:
-                        self.A[s, s] = self.A[s,s] + 1
-                for condition in ne_conditions:
-                    iiy2 = iiy1 + condition[1]
-                    iix2 = iix1 + condition[0]
-                    if not self.is_out(iiy2, iix2):
-                        s2 = (self.m * iiy2)/self.h + iix2
-                        self.A[s, s2] = 1
-                        self.A[s2, s] = 1
-                        #if s == 1:
-                        #    print("CONDITION %d %d" % (s, s2))
-
-        self.I = scipy.sparse.eye(self.size)
-        #for d in range(int(self.n/self.h)):
-        #    print(self.A[d,:].todense())
-        #print("size = %d" % self.size)
-        #print("laplacian = ")
-        #print(self.A.todense())
-        #input()
+        self.A, self.I, self.size = self.get_laplacian_operator()
         self.bmap = np.zeros([self.n/self.h, self.m/self.h])
         self.iteration = 0
     
-    def advection(self, u):
+    def advection_primitive(self, u):
         u_x = u[:,:,0]
         u_y = u[:,:,1]
         duxdx = self.compute_gradient(u[:,:,0], self.h, self.h)[:,:,0]
@@ -132,6 +133,48 @@ class CFDSimulator(BaseSimulator):
         s[:,:,1] = u_x * duydx + u_y * duydy
         return s
 
+    def add_force(self, v, dt, f):
+        return v + dt*f
+
+    def advection(self, v, dt, path):
+        w2 = v.copy()
+        for j in self.ax:
+            for i in self.ay:
+                psi = path[i,j,1]
+                psj = path[i,j,0]
+                psi = np.clip(int(psi), 0, self.n/self.h - 1)
+                psj = np.clip(int(psj), 0, self.m/self.h - 1)
+                w2[i,j,0] = w1[psi, psj, 0]
+                w2[i,j,1] = w1[psi, psj, 1]
+        return w2
+        
+    def update_path(self, path, w1, dt):
+        # set new paths 
+        newpath = path.copy()
+        newpath[:,:,0] = path[:,:,0] + w1[:,:,0]*dt
+        newpath[:,:,1] = path[:,:,1] + w1[:,:,1]*dt
+        return newpath
+
+    def diffusion(self, w2, dt):
+        w2_x = w2[:,:,0].reshape(self.size)
+        w2_y = w2[:,:,1].reshape(self.size)
+        w30, info = scipy.sparse.linalg.bicg(self.I - (self.viscosity * dt)*self.A, w2_x)
+        w31, info = scipy.sparse.linalg.bicg(self.I - (self.viscosity * dt)*self.A, w2_y)
+        w3 = np.zeros([self.n/self.h, self.m/self.h, 2])
+        w3[:,:,0] = w30.reshape([self.n/self.h, self.m/self.h])
+        w3[:,:,1] = w31.reshape([self.n/self.h, self.m/self.h])
+        return w3
+
+    def projection(self, w3, dt):
+        div_w3 = self.compute_divergence(w3, self.h, self.h)
+        div_w3_reshaped = div_w3.reshape(self.size)
+        
+        p_ = scipy.sparse.linalg.spsolve(self.A, div_w3_reshaped)
+        p = p_.reshape(self.n/self.h, self.m/self.h)
+        grad_p = self.compute_gradient(p, self.h, self.h)
+        w4 = w3 - grad_p 
+        return (w4, p)
+
 
     def compute_speed(self, v):
         return np.sqrt(v[:, :, 0]**2 + v[:, :, 1]**2)
@@ -140,200 +183,49 @@ class CFDSimulator(BaseSimulator):
         #plt.plot(np.diff(self.deltas))
         #plt.show()
         pass
+    
+    def plot_change(self, iteration, v, bmap):
+        if self.DEBUG_PLOT:
+            plt.imsave("debug-%d.png" % iteration, self.compute_speed(v) - bmap, vmax=2, vmin=-2)
+            iteration += 1
+            bmap = self.compute_speed(v)
+        return (bmap, iteration)
+    
+    def print_vector(self, s, v):
+        if self.DEBUG:
+            print(s)
+            print(v)
+            if self.DEBUG_BREAK:
+                input()
 
     def step(self, dt):
-        #print("Starting step")
         w0 = self.velocities 
-        print("w0")
-        print(w0[:,:,0])
-        #self.deltas.append(self.compute_speed(w0))
+        self.print_vector("w0", w0[:,:,0])
+        self.bmap, self.iteration = self.plot_change(self.iteration, w0, self.bmap)
         
-        #plt.imsave("debug-%d.png" % self.iteration, self.compute_speed(w0) - self.bmap, vmax=2, vmin=-2)
-        #self.iteration += 1
-        #self.bmap = self.compute_speed(w0)
+        w1 = self.add_force(w0, dt, self.forces)
+        self.print_vector("w1", w1[:,:,0])
+        self.bmap, self.iteration = self.plot_change(self.iteration, w1, self.bmap)
         
-        #input()
-        w1 = w0 + dt * self.forces 
-        print("w1")
-        print(w1[:,:,0])
-        #self.deltas.append(self.compute_speed(w1))
-        
-        #plt.imsave("debug-%d.png" % self.iteration, self.compute_speed(w1) - self.bmap, vmax=2, vmin=-2)
-        #self.iteration += 1
-        #self.bmap = self.compute_speed(w1)
-        
-        #input()
+        # w2 = self.advection(w1, dt, self.path)
+        # self.path = self.update_path(self.path, w1, dt)
         w2 = w1.copy()
-        """
-        for j in self.ax:
-            for i in self.ay:
-                psi = self.path[i,j,1]
-                psj = self.path[i,j,0]
-                psi = np.clip(int(psi), 0, self.n/self.h - 1)
-                psj = np.clip(int(psj), 0, self.m/self.h - 1)
-                w2[i,j,0] = w1[psi, psj, 0]
-                w2[i,j,1] = w1[psi, psj, 1]
+        w2 =  w1 - dt * self.advection_primitive(w1)
+        self.print_vector("w2", w2[:,:,0])
+        self.bmap, self.iteration = self.plot_change(self.iteration, w2, self.bmap)
         
-        # set new paths 
-        self.path[:,:,0] = self.path[:,:,0] + w1[:,:,0]*dt
-        self.path[:,:,1] = self.path[:,:,1] + w1[:,:,1]*dt
-        print("w2")
-        print(w2[:,:,0])
-        """
-        w2 =  w1 - dt * self.advection(w1)
-        print("w2")
-        print(w2[:,:,0])
-        #plt.imsave("debug-%d.png" % self.iteration, self.compute_speed(w2) - self.bmap, vmax=2, vmin=-2)
-        #self.iteration += 1
-        #self.bmap = self.compute_speed(w2)
-        
-        #input()
-        # calculating diffusion 
-        """
-        for iy in ay:
-            for ix in ax:
-                s = self.m * iy/h + ix/h 
-                s1 = self.m*(iy/h + 1) + ix/h
-                s2 = self.m*iy/h + (ix/h)+1
-                s3 = self.m*(iy/h - 1) + ix/h
-                s4 = self.m*iy/h + (ix/h) - 1
-                s = int(s)
-                s1 = int(s1)
-                s2 = int(s2)
-                s3 = int(s3) 
-                s4 = int(s4)
-
-                iix, iiy = (int(ix/h), int(iy/h))
-                if (ix, iy) in [(0,0), (0, self.n-1), (self.m-1, 0), (self.m-1, self.n-1)]:
-                    A[s,s] = 1 + 2/(h**2)
-                    if (ix, iy) == (0,0):
-                        A[s, s2] = -1/(h**2)
-                        A[s, s3] = -1/(h**2)
-                    if (ix, iy) == (0,self.m-1):
-                        A[s, s4] = -1/(h**2)
-                        A[s, s3] = -1/(h**2)
-                    if (ix, iy) == (self.n-1,0):
-                        A[s, s2] = -1/(h**2)
-                        A[s, s1] = -1/(h**2)
-                    if (ix, iy) == (self.n-1, self.m-1):
-                        A[s, s1] = -1/(h**2)
-                        A[s, s4] = -1/(h**2)
-                elif iy == 0:
-                    A[s, s2] = -1/h**2
-                    A[s, s3] = -1/h**2
-                    A[s, s4] = -1/h**2
-                    A[s, s] = 1 + 3/(dt * self.viscosity*h**2)
-                elif iy == self.n-1:
-                    A[s, s1] = -1/h**2
-                    A[s, s2] = -1/h**2
-                    A[s, s4] = -1/h**2
-                    A[s, s] = 1 + 3/(dt*self.viscosity * h**2)
-                elif ix == 0:
-                    A[s, s1] = -1/h**2
-                    A[s, s2] = -1/h**2
-                    A[s, s3] = -1/h**2
-                    A[s, s] = 1 + 3/(dt*self.viscosity * h**2)
-                elif ix == self.m-1:
-                    A[s, s1] = -1/h**2
-                    A[s, s3] = -1/h**2
-                    A[s, s4] = -1/h**2
-                    A[s, s] = 1 + 3/(dt*self.viscosity * h**2)
-                #elif ix == 0 or ix == self.m-1 or self.boundaries[iiy, iix]:
-                #    A[s, s1] = -1/h**2
-                #    A[s, s3] = -1/h**2
-                #    A[s,s] = 1 + 2/(dt* self.viscosity * h**2)
-                else:
-                    A[s, s1] = -1/h**2
-                    A[s, s2] = -1/h**2
-                    A[s, s3] = -1/h**2
-                    A[s, s4] = -1/h**2
-                    A[s, s] = 1 + 4/(dt * self.viscosity *h**2)
-        """
-        # calculating w3
-        w2_x = w2[:,:,0].reshape(self.size)
-        w2_y = w2[:,:,1].reshape(self.size)
-        w30, info = scipy.sparse.linalg.bicg(self.I - (self.viscosity * dt)*self.A, w2_x)
-        w31, info = scipy.sparse.linalg.bicg(self.I - (self.viscosity * dt)*self.A, w2_y)
-        w3 = np.zeros([self.n/self.h, self.m/self.h, 2])
-        #w3[:,:,0] = w30.reshape([self.n/self.h, self.m/self.h])
-        #w3[:,:,1] = w31.reshape([self.n/self.h, self.m/self.h])
+        # w3 = self.diffusion(w2, dt)
         w3 = w2 + dt * self.viscosity * self.compute_laplacian(w2, self.h, self.h)
-        print("w3")
-        print(w3[:,:,0])
+        self.print_vector("w3", w3[:,:,0])
+        self.bmap, self.iteration = self.plot_change(self.iteration, w3, self.bmap)
         
-        #plt.imsave("debug-%d.png" % self.iteration, self.compute_speed(w3) - self.bmap, vmax=2, vmin=-2)
-        #self.iteration += 1
-        #self.bmap = self.compute_speed(w3)
-        
-        #input()
-        # OH YEAH ! 
-        # i have w3, now I can compute pressure, finally 
-        # Qp = div_w3
-        div_w3 = self.compute_divergence(w3, self.h, self.h)
-        div_w3_reshaped = div_w3.reshape(self.size)
-        """
-        Q = scipy.sparse.dok_matrix((size, size))
-        for ix in ax:
-            for iy in ay:
-                s = self.m * iy + ix 
-                s1 = self.m*(iy + h) + ix 
-                s2 = self.m*iy + ix+h
-                s3 = self.m*(iy - h) + ix 
-                s4 = self.m*iy + ix - h
-                # these are not indices yet, divide by h
-                s = int(s/h)
-                s1 = int(s1/h)
-                s2 = int(s2/h)
-                s3 = int(s3/h) 
-                s4 = int(s4/h)
-                #Q[s][s] = -4/(h**2)
-                if (ix, iy) in [(0, 0), (0, self.n), (self.m, 0), (self.m, self.n)]:
-                    Q[s, s] = 0
-                elif ix + h == self.m or self.boundaries[iy, ix + h] or ix - h < 0 or self.boundaries[iy, ix-h]:
-                    Q[s, s] = -2/(h**2)
-                    Q[s, s1] = 1/h**2
-                    Q[s, s3] = 1/h**2
-                elif iy + h == self.n or self.boundaries[iy + h, ix] or iy - h < 0 or self.boundaries[iy-h, ix]:
-                    Q[s, s2] = 1/h**2
-                    Q[s, s4] = 1/h**2
-                    Q[s, s] = -2/(h**2)
-                else:
-                    Q[s, s] = -4/(h**2)
-                    Q[s, s1] = 1/h**2 
-                    Q[s, s2] = 1/h**2
-                    Q[s, s3] = 1/h**2
-                    Q[s, s4] = 1/h**2
-        """
-        print("Solving system: Lp = div w3")
-        print("L")
-        print(self.A)
-        print("w3")
-        print(div_w3_reshaped)
-        p_ = scipy.sparse.linalg.spsolve(self.A, div_w3_reshaped)
-        print("p")
-        print(p_)
-        p = p_.reshape(self.n/self.h, self.m/self.h)
-        grad_p = self.compute_gradient(p, self.h, self.h)
-        w4 = w3 - grad_p 
-        print("w4")
-        print(w4[:,:,0])
-        #input()
+        w4, p = self.projection(w3, dt)
         self.velocities = w4 
-
-        # copy w1 to old 
         self.pressure = p 
 
-        # This is wrong but i use it because i can and it is easy to debug with existing animators 
         self.densities = p 
-        print("_______________________________________________________")
-        print("div grad p")
-        print(self.compute_divergence(grad_p, self.h, self.h))
-        print("div w3")
-        print(self.compute_divergence(w3, self.h, self.h))
-        print("div v")
-        print(self.compute_divergence(self.velocities, self.h, self.h))
-        #input()
-        plt.imsave("debug-%d.png" % self.iteration, self.compute_speed(w4) - self.bmap, vmax=2, vmin=-2)
-        self.iteration += 1
-        self.bmap = self.compute_speed(w4)
+        
+        self.print_vector("div v", self.compute_divergence(self.velocities, self.h, self.h))
+        self.bmap, self.iteration = self.plot_change(self.iteration, w4, self.bmap)
+        
         self.forces.fill(0)
