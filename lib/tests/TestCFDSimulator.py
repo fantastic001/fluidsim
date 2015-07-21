@@ -106,7 +106,40 @@ class TestCFDSimulator(unittest.TestCase):
         nptest.assert_allclose(res, expected, rtol=0.1)
 
     def test_diffusion(self):
-        pass
+        simulator = CFDSimulator(np.zeros([10,10]),np.zeros([10,10, 2]),np.zeros([10,10]),1)
+        # construct grid first 
+        y, x = np.mgrid[0:10:simulator.h, 0:10:simulator.h]
+        u = np.zeros([int(10/simulator.h), int(10/simulator.h), 2])
+        expected = np.zeros([int(10/simulator.h),int(10/simulator.h), 2])
+        dt = 0.1
+
+        u[:,:,0] = 100
+        u[:,:,1] = 100
+        res = simulator.diffusion(u, dt)
+        expected[:,:,0] = 100
+        expected[:,:,1] = 100
+        nptest.assert_array_almost_equal(res, expected)
+
+        u[:,:,0] = x
+        u[:,:,1] = y
+        res = simulator.diffusion(u, dt)
+        expected[:,:,0] = x
+        expected[:,:,1] = y
+        nptest.assert_array_almost_equal(res, expected)
+
+        u[:,:,0] = x**2
+        u[:,:,1] = y**2
+        res = simulator.diffusion(u, dt)
+        expected[:,:,0] = x**2 + 2*dt
+        expected[:,:,1] = y**2 + 2*dt
+        nptest.assert_array_almost_equal(res, expected)
+        
+        u[:,:,0] = x**2 + y**2
+        u[:,:,1] = x**2 + y**2
+        res = simulator.diffusion(u, dt)
+        expected[:,:,0] = x**2 + y**2 + 4*dt
+        expected[:,:,1] = x**2 + y**2 + 4*dt
+        nptest.assert_array_almost_equal(res, expected)
 
     def test_projection(self):
         pass
