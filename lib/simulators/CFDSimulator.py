@@ -158,8 +158,8 @@ class CFDSimulator(BaseSimulator):
     def diffusion(self, w2, dt):
         w2_x = w2[:,:,0].reshape(self.size)
         w2_y = w2[:,:,1].reshape(self.size)
-        w30, info = scipy.sparse.linalg.bicg(self.I - (self.viscosity * dt)*self.A, w2_x)
-        w31, info = scipy.sparse.linalg.bicg(self.I - (self.viscosity * dt)*self.A, w2_y)
+        w30 = scipy.sparse.linalg.spsolve(self.I - (self.viscosity * dt)*self.A, w2_x)
+        w31 = scipy.sparse.linalg.spsolve(self.I - (self.viscosity * dt)*self.A, w2_y)
         w3 = np.zeros([int(self.n/self.h), int(self.m/self.h), 2])
         w3[:,:,0] = w30.reshape([int(self.n/self.h), int(self.m/self.h)])
         w3[:,:,1] = w31.reshape([int(self.n/self.h), int(self.m/self.h)])

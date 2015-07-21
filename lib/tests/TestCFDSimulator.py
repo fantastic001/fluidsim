@@ -141,5 +141,48 @@ class TestCFDSimulator(unittest.TestCase):
         expected[:,:,1] = x**2 + y**2 + 4*dt
         nptest.assert_array_almost_equal(res, expected)
 
+    def test_laplacian_operator(self):
+        simulator = CFDSimulator(np.zeros([10,10]),np.zeros([10,10, 2]),np.zeros([10,10]),1)
+        # construct grid first 
+        y, x = np.mgrid[0:10:simulator.h, 0:10:simulator.h]
+        u = np.zeros([int(10/simulator.h), int(10/simulator.h)])
+        expected = np.zeros([int(10/simulator.h),int(10/simulator.h)])
+        A, I, size = simulator.get_laplacian_operator()
+
+        u[:,:] = 100
+        res = A.dot(u.reshape(size))
+        expected[:,:] = 0
+        nptest.assert_array_almost_equal(res, expected.reshape(size))
+
+        u[:,:] = x
+        res = A.dot(u.reshape(size))
+        expected[:,:] = 0
+        nptest.assert_array_almost_equal(res, expected.reshape(size))
+        
+        u[:,:] = y
+        res = A.dot(u.reshape(size))
+        expected[:,:] = 0
+        nptest.assert_array_almost_equal(res, expected.reshape(size))
+
+        u[:,:] = x**2
+        res = A.dot(u.reshape(size))
+        expected[:,:] = 2
+        nptest.assert_array_almost_equal(res, expected.reshape(size))
+        
+        u[:,:] = y**2
+        res = A.dot(u.reshape(size))
+        expected[:,:] = 2
+        nptest.assert_array_almost_equal(res, expected.reshape(size))
+        
+        u[:,:] = x*y
+        res = A.dot(u.reshape(size))
+        expected[:,:] = 0
+        nptest.assert_array_almost_equal(res, expected.reshape(size))
+        
+        u[:,:] = x**2 + y**2
+        res = A.dot(u.reshape(size))
+        expected[:,:] = 4
+        nptest.assert_array_almost_equal(res, expected.reshape(size))
+
     def test_projection(self):
         pass
