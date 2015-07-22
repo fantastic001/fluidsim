@@ -202,6 +202,10 @@ class CFDSimulator(BaseSimulator):
         p_ = scipy.sparse.linalg.spsolve(M, c)
         p = p_.reshape(int(self.n/self.h), int(self.m/self.h))
         grad_p = self.compute_gradient(p, self.h, self.h)
+        self.print_vector("b = ", c)
+        self.print_vector("A = ", M.todense())
+        self.print_vector("p = ", p)
+        self.print_vector("grad p_x = ", grad_p[:,:,0])
         w4 = w3 - grad_p 
         return (w4, p)
 
