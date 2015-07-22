@@ -192,4 +192,16 @@ class TestCFDSimulator(unittest.TestCase):
         nptest.assert_array_almost_equal(res.reshape(n,m)[1:-1,1:-1], expected[1:-1,1:-1])
 
     def test_projection(self):
-        pass
+        # WARNING: This test assumes correct compute_divergence method
+        # TODO Fix this to be independent
+        simulator = CFDSimulator(np.zeros([100,100]),np.zeros([100,100, 2]),np.zeros([100,100]),0.001)
+        # construct grid first 
+        y, x = np.mgrid[0:100:simulator.h, 0:100:simulator.h]
+        u = np.zeros([int(100/simulator.h), int(100/simulator.h), 2])
+        expected = np.zeros([int(100/simulator.h),int(100/simulator.h)])
+        dt = 0.1
+
+        u[:,:,0] = 1e+15
+        u[:,:,1] = 1e+15
+        w, p = simulator.projection(u, dt)
+        nptest.assert_array_almost_equal(simulator.compute_divergence(w, simulator.h, simulator.h), expected)
