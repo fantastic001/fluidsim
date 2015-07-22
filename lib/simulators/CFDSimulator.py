@@ -23,10 +23,13 @@ class CFDSimulator(BaseSimulator):
             bmap = self.compute_speed(v)
         return (bmap, iteration)
     
-    def print_vector(self, s, v):
+    def print_vector(self, s, v, full=False):
         if self.DEBUG:
             print(s)
-            print(v)
+            if full:
+                print(v.tolist())
+            else:
+                print(v)
             if self.DEBUG_BREAK:
                 input()
 
@@ -202,7 +205,7 @@ class CFDSimulator(BaseSimulator):
         p_ = scipy.sparse.linalg.spsolve(M, c)
         p = p_.reshape(int(self.n/self.h), int(self.m/self.h))
         grad_p = self.compute_gradient(p, self.h, self.h)
-        self.print_vector("b = ", c)
+        self.print_vector("b = ", c, full=True)
         self.print_vector("A = ", M.todense())
         self.print_vector("p = ", p)
         self.print_vector("grad p_x = ", grad_p[:,:,0])
