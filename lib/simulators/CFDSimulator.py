@@ -206,7 +206,7 @@ class CFDSimulator(BaseSimulator):
         div_w3_reshaped = div_w3.reshape(self.size)
         M, c = self.pressure_boundaries(self.A, div_w3_reshaped)
         p_ = scipy.sparse.linalg.spsolve(M, c)
-        p = p_.reshape(self.n/self.h, self.m/self.h)
+        p = p_.reshape(int(self.n/self.h), int(self.m/self.h))
         grad_p = self.compute_gradient(p, self.h, self.h)
         w4 = w3 - grad_p 
         return (w4, p)
