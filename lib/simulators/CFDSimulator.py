@@ -51,19 +51,24 @@ class CFDSimulator(BaseSimulator):
         res[:,:,0] = dpxx + dpyy
         res[:,:,1] = dqxx + dqyy
         return res 
-
-    def is_edge(self, i,j):
-        return [i == 0, j == self.m/self.h - 1, i == self.n/self.h - 1, j == 0]
-
-    def is_out(self,i,j):
-        return i < 0 or i == self.n/self.h or j < 0 or j == self.m/self.h 
     
+    def boundary_up(self, i,j):
+        return i==0 or self.boundaries[i-1, j]
+    def boundary_down(self, i,j):
+        return i==int(self.n/self.h)-1 or self.boundaries[i+1, j]
+    def boundary_left(self, i,j):
+        return j==0 or self.boundaries[i, j-1]
+    def boundary_right(self, i,j):
+        return j==int(self.m/self.h)-1 or self.boundaries[i, j+1]
+
+    def boundary(self, i,j):
+        return self.boundary_up(i,j) or self.boundary_left(i,j) or self.boundary_right(i,j) or self.boundary_down(i,j)
+
     def get_laplacian_operator(self):
         # Computing laplacian operator 
         size = int(self.n/self.h) * int(self.m / self.h)
+        c = int(self.m/self.h)
         A = scipy.sparse.dok_matrix((size, size))
-        ne_conditions = [np.array([0,1]), np.array([0,-1]), np.array([1, 0]), np.array([-1, 0])]
-        #print("ax = %d" % len(self.ax))
         for iy1 in self.ay:
             for ix1 in self.ax:
                 iix1 = int(ix1/self.h)
@@ -72,23 +77,53 @@ class CFDSimulator(BaseSimulator):
                 #print("ix iy = %d %d" % (ix1, iy1))
                 #print("iix1, iiy1 = %d %d" % (iix1, iiy1))
                 #print("index %d" % s)
-                A[s,s] = -4
-                edges = self.is_edge(iiy1, iix1)
-                for edge in edges:
-                    if edge:
-                        A[s, s] = A[s,s] + 1
-                for condition in ne_conditions:
-                    iiy2 = iiy1 + condition[1]
-                    iix2 = iix1 + condition[0]
-                    if not self.is_out(iiy2, iix2):
-                        s2 = (self.m * iiy2)/self.h + iix2
-                        A[s, s2] = 1
-                        A[s2, s] = 1
-                        #if s == 1:
-                        #    print("CONDITION %d %d" % (s, s2))
+                if not self.boundary(iiy1, iix1):
+                    A[s,s] = -4
+                    A[s, s+1] = 1
+                    A[s, s-1] = 1
+                    A[s,s+c] = 1 
+                    A[s,s-c] = 1
         I = scipy.sparse.eye(size)
         return (A, I, size)
 
+    def pressure_boundaries(self, M, c):
+        A = M.copy()
+        b = c.copy()
+        columns = int(self.m/self.h)
+        rows = int(self.n/self.h)
+        for i in range(rows):
+            for j in range(columns):
+                s = columns * i + j
+                if self.boundary(i,j):
+                    A[s,s] = 1
+                    b[s] = 0
+                    if self.boundary_up(i,j):
+                        A[s,s+columns] = -1
+                    if self.boundary_down(i,j):
+                        A[s,s-columns] = -1
+                    if self.boundary_left(i,j):
+                        A[s,s+1] = -1
+                    if self.boundary_right(i,j):
+                        A[s,s-1] = -1
+        return (A,b)
+    
+    def velocity_boundaries(self, M, c_x, c_y):
+        A = M.copy()
+        b_x = c_x.copy()
+        b_y = c_y.copy()
+        columns = int(self.m/self.h)
+        rows = int(self.n/self.h)
+        for i in range(rows):
+            for j in range(columns):
+                s = columns * i + j
+                if self.boundary(i,j):
+                    A[s,s] = 1
+                    if self.boundary_up(i,j) or self.boundary_down(i,j):
+                        b_y[s] = 0
+                    if self.boundary_right(i,j) or self.boundary_left(i,j):
+                        b_x[s] = 0
+        return (A,b_x, b_y)
+    
     def start(self):
         self.deltas = []
 
@@ -158,8 +193,9 @@ class CFDSimulator(BaseSimulator):
     def diffusion(self, w2, dt):
         w2_x = w2[:,:,0].reshape(self.size)
         w2_y = w2[:,:,1].reshape(self.size)
-        w30 = scipy.sparse.linalg.spsolve(self.I - (self.viscosity * dt)*self.A, w2_x)
-        w31 = scipy.sparse.linalg.spsolve(self.I - (self.viscosity * dt)*self.A, w2_y)
+        M, c_x, c_y = self.velocity_boundaries(self.A, w2_x, w2_y)
+        w30 = scipy.sparse.linalg.spsolve(self.I - (self.viscosity * dt)*M, c_x)
+        w31 = scipy.sparse.linalg.spsolve(self.I - (self.viscosity * dt)*M, c_y)
         w3 = np.zeros([int(self.n/self.h), int(self.m/self.h), 2])
         w3[:,:,0] = w30.reshape([int(self.n/self.h), int(self.m/self.h)])
         w3[:,:,1] = w31.reshape([int(self.n/self.h), int(self.m/self.h)])
@@ -168,8 +204,8 @@ class CFDSimulator(BaseSimulator):
     def projection(self, w3, dt):
         div_w3 = self.compute_divergence(w3, self.h, self.h)
         div_w3_reshaped = div_w3.reshape(self.size)
-        
-        p_ = scipy.sparse.linalg.spsolve(self.A, div_w3_reshaped)
+        M, c = self.pressure_boundaries(self.A, div_w3_reshaped)
+        p_ = scipy.sparse.linalg.spsolve(M, c)
         p = p_.reshape(self.n/self.h, self.m/self.h)
         grad_p = self.compute_gradient(p, self.h, self.h)
         w4 = w3 - grad_p 
