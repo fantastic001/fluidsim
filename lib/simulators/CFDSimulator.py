@@ -16,6 +16,23 @@ class CFDSimulator(BaseSimulator):
     DEBUG_BREAK = False
     DEBUG_PLOT = False
 
+    def plot_change(self, iteration, v, bmap):
+        if self.DEBUG_PLOT:
+            plt.imsave("debug-%d.png" % iteration, self.compute_speed(v) - bmap, vmax=2, vmin=-2)
+            iteration += 1
+            bmap = self.compute_speed(v)
+        return (bmap, iteration)
+    
+    def print_vector(self, s, v):
+        if self.DEBUG:
+            print(s)
+            print(v)
+            if self.DEBUG_BREAK:
+                input()
+
+    def compute_speed(self, v):
+        return np.sqrt(v[:, :, 0]**2 + v[:, :, 1]**2)
+    
     def compute_gradient(self, a, dx, dy):
         dy, dx = np.gradient(a, dy, dx, edge_order=2)
         grad = np.zeros([a.shape[0], a.shape[1], 2])
@@ -124,29 +141,6 @@ class CFDSimulator(BaseSimulator):
                         b_x[s] = 0
         return (A,b_x, b_y)
     
-    def start(self):
-        self.deltas = []
-
-        self.h = 1.0
-        self.n, self.m = (self.velocities.shape[0]*self.h, self.velocities.shape[1]*self.h)
-        self.forces = np.zeros([int(self.n/self.h), int(self.m/self.h), 2]) # Will be removed and modeled differently
-        # Set forces :)))
-        for fi in range(int(self.n/self.h)):
-            self.forces[fi, :, 0] = np.linspace(100, 0, self.m/self.h)
-        
-        self.y,self.x = np.mgrid[0:self.n:self.h, 0:self.m:self.h]
-        self.ax = np.arange(0, self.m, self.h)
-        self.ay = np.arange(0, self.n, self.h)
-
-        # set path 
-        self.path = np.zeros([int(self.n / self.h), int(self.m / self.h), 2])
-        for py in self.ay:
-            for px in self.ax:
-                self.path[int(py/self.h), int(px/self.h), 0] = px
-                self.path[int(py/self.h), int(px/self.h), 1] = py
-        self.A, self.I, self.size = self.get_laplacian_operator()
-        self.bmap = np.zeros([int(self.n/self.h), int(self.m/self.h)])
-        self.iteration = 0
     
     def advection_primitive(self, u):
         u_x = u[:,:,0]
@@ -211,29 +205,35 @@ class CFDSimulator(BaseSimulator):
         w4 = w3 - grad_p 
         return (w4, p)
 
+    def start(self):
+        self.deltas = []
 
-    def compute_speed(self, v):
-        return np.sqrt(v[:, :, 0]**2 + v[:, :, 1]**2)
+        self.h = 1.0
+        self.n, self.m = (self.velocities.shape[0]*self.h, self.velocities.shape[1]*self.h)
+        self.forces = np.zeros([int(self.n/self.h), int(self.m/self.h), 2]) # Will be removed and modeled differently
+        # Set forces :)))
+        for fi in range(int(self.n/self.h)):
+            self.forces[fi, :, 0] = np.linspace(100, 0, self.m/self.h)
+        
+        self.y,self.x = np.mgrid[0:self.n:self.h, 0:self.m:self.h]
+        self.ax = np.arange(0, self.m, self.h)
+        self.ay = np.arange(0, self.n, self.h)
 
+        # set path 
+        self.path = np.zeros([int(self.n / self.h), int(self.m / self.h), 2])
+        for py in self.ay:
+            for px in self.ax:
+                self.path[int(py/self.h), int(px/self.h), 0] = px
+                self.path[int(py/self.h), int(px/self.h), 1] = py
+        self.A, self.I, self.size = self.get_laplacian_operator()
+        self.bmap = np.zeros([int(self.n/self.h), int(self.m/self.h)])
+        self.iteration = 0
+    
     def finish(self):
         #plt.plot(np.diff(self.deltas))
         #plt.show()
         pass
     
-    def plot_change(self, iteration, v, bmap):
-        if self.DEBUG_PLOT:
-            plt.imsave("debug-%d.png" % iteration, self.compute_speed(v) - bmap, vmax=2, vmin=-2)
-            iteration += 1
-            bmap = self.compute_speed(v)
-        return (bmap, iteration)
-    
-    def print_vector(self, s, v):
-        if self.DEBUG:
-            print(s)
-            print(v)
-            if self.DEBUG_BREAK:
-                input()
-
     def step(self, dt):
         w0 = self.velocities 
         self.print_vector("w0", w0[:,:,0])
