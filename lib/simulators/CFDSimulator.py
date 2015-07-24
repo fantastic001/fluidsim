@@ -16,6 +16,9 @@ class CFDSimulator(BaseSimulator):
     DEBUG_BREAK = False
     DEBUG_PLOT = False
 
+    def get_condition_number(self, M):
+        return scipy.sparse.linalg.onenormest(M) * scipy.sparse.linalg.onenormest(scipy.sparse.linalg.inv(M))
+
     def plot_change(self, iteration, v, bmap):
         if self.DEBUG_PLOT:
             plt.imsave("debug-%d.png" % iteration, self.compute_speed(v) - bmap, vmax=2, vmin=-2)
@@ -88,7 +91,7 @@ class CFDSimulator(BaseSimulator):
         # Computing laplacian operator 
         size = int(self.n/self.h) * int(self.m / self.h)
         c = int(self.m/self.h)
-        A = scipy.sparse.dok_matrix((size, size))
+        A = scipy.sparse.csc_matrix((size, size))
         for iy1 in self.ay:
             for ix1 in self.ax:
                 iix1 = int(ix1/self.h)
@@ -105,27 +108,38 @@ class CFDSimulator(BaseSimulator):
                     A[s,s-c] = 1
         I = scipy.sparse.eye(size)
         return (A, I, size)
-
-    def pressure_boundaries(self, M, c):
+    
+    def get_pressure_laplacian_operator(self, M):
         A = M.copy()
-        b = c.copy()
+        b = np.ones(self.size)
         columns = int(self.m/self.h)
         rows = int(self.n/self.h)
         for i in range(rows):
             for j in range(columns):
                 s = columns * i + j
                 if self.boundary(i,j):
-                    A[s,s] = 1
-                    b[s] = 0
+                    A[s,s] = -2
+                    if (i,j) in [(0,0), (0, columns-1), (rows-1, 0), (rows-1, columns-1)]:
+                        A[s,s] = 1 
+                        b[s] = 0
+                        continue 
                     if self.boundary_up(i,j):
-                        A[s,s+columns] = -1
+                        A[s,s+1] = 1
+                        A[s,s-1] = 1
                     if self.boundary_down(i,j):
-                        A[s,s-columns] = -1
+                        A[s,s+1] = 1
+                        A[s,s-1] = 1
                     if self.boundary_left(i,j):
-                        A[s,s+1] = -1
+                        A[s,s+columns] = 1
+                        A[s,s-columns] = 1
                     if self.boundary_right(i,j):
-                        A[s,s-1] = -1
-        return (A,b)
+                        A[s,s + columns] = 1
+                        A[s,s - columns] = 1
+        return (A, b)
+
+    def pressure_boundaries(self, M, c):
+        b = c*self.bp
+        return (self.Ap,b)
     
     def velocity_boundaries(self, M, c_x, c_y):
         A = M.copy()
@@ -197,18 +211,56 @@ class CFDSimulator(BaseSimulator):
         w3[:,:,0] = w30.reshape([int(self.n/self.h), int(self.m/self.h)])
         w3[:,:,1] = w31.reshape([int(self.n/self.h), int(self.m/self.h)])
         return w3
+    
+    def poisson(self, A, w):
+        # S = scipy.sparse.tril(A, 0) 
+        S = A * scipy.sparse.identity(A.shape[0])
+        T = S - A
+        # B = scipy.sparse.linalg.inv(S).dot(T)
+        # el, ev = scipy.sparse.linalg.eigs(B)
+        # self.print_vector("Eigenvalues of inv(S)T: ", el)
+        # self.print_vector("Rate of convergence: ", el.max())
+        # self.print_vector("W: ", w)
+        p = np.zeros(self.size)
+        for i in range(20):
+            p = scipy.sparse.linalg.spsolve(S, T.dot(p) + w)
+            self.print_vector("Pressure: ", p)
+            # test = w.reshape([self.n, self.m]) - self.compute_divergence(self.compute_gradient(p.reshape([self.n, self.m]), self.h, self.h), self.h, self.h)
+            # self.print_vector("divergence: ", test) 
+        return p
+
 
     def projection(self, w3, dt):
+        self.print_vector("w3: ", w3)
         div_w3 = self.compute_divergence(w3, self.h, self.h)
         div_w3_reshaped = div_w3.reshape(self.size)
+        self.print_vector("div w3: ", div_w3_reshaped)
         M, c = self.pressure_boundaries(self.A, div_w3_reshaped)
-        p_ = scipy.sparse.linalg.spsolve(M, c)
+        #diag_M = M * scipy.sparse.identity(M.shape[0])
+        #P = scipy.sparse.linalg.inv(diag_M).dot(M)
+        
+        #p_ = scipy.sparse.linalg.spsolve(M, c)
+        p_ = self.poisson(M, c)
+        """
+        for s in range(self.size):
+            p_[s] = p_[s] / diag_M[s,s]
+        """
         p = p_.reshape(int(self.n/self.h), int(self.m/self.h))
+        # Set boundaries back 
+        #p[0,:] = p[1,:]
+        #p[-1,:] = p[-2, :]
+        #p[:,0] = p[:,1]
+        #p[:,-1] = p[:,-2]
+
         grad_p = self.compute_gradient(p, self.h, self.h)
-        self.print_vector("b = ", c, full=True)
-        self.print_vector("A = ", M.todense())
+        #self.print_vector("b = ", c, full=True)
+        #self.print_vector("A = ", M.todense(), full=True)
+        #self.print_vector("A inverse", scipy.sparse.linalg.inv(M).todense(), full=True)
         self.print_vector("p = ", p)
         self.print_vector("grad p_x = ", grad_p[:,:,0])
+        #self.print_vector("condition number of system: ", self.get_condition_number(M))
+        #self.print_vector("condition number of preconditioned system: ", self.get_condition_number(P))
+        #self.print_vector("Condition number of diagonalized matrix: ", self.get_condition_number(diag_M))
         w4 = w3 - grad_p 
         return (w4, p)
 
@@ -235,6 +287,7 @@ class CFDSimulator(BaseSimulator):
         self.A, self.I, self.size = self.get_laplacian_operator()
         self.bmap = np.zeros([int(self.n/self.h), int(self.m/self.h)])
         self.iteration = 0
+        self.Ap, self.bp = self.get_pressure_laplacian_operator(self.A)
     
     def finish(self):
         #plt.plot(np.diff(self.deltas))
@@ -245,7 +298,7 @@ class CFDSimulator(BaseSimulator):
         w0 = self.velocities 
         self.print_vector("w0", w0[:,:,0])
         self.bmap, self.iteration = self.plot_change(self.iteration, w0, self.bmap)
-        
+
         w1 = self.add_force(w0, dt, self.forces)
         self.print_vector("w1", w1[:,:,0])
         self.bmap, self.iteration = self.plot_change(self.iteration, w1, self.bmap)
