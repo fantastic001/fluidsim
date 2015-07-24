@@ -17,6 +17,7 @@ class CFDSimulator(BaseSimulator):
     DEBUG = True
     DEBUG_BREAK = False
     DEBUG_PLOT = False
+    DEBUG_INTERACTIVE_PLOTS = True
     
     def save_sparse_csr(self, filename,array):
         np.savez(filename,data = array.data ,indices=array.indices, indptr =array.indptr, shape=array.shape)
@@ -34,6 +35,13 @@ class CFDSimulator(BaseSimulator):
             iteration += 1
             bmap = self.compute_speed(v)
         return (bmap, iteration)
+
+    def plot_field(self, v, title=""):
+        if self.DEBUG_INTERACTIVE_PLOTS:
+            plt.quiver(v[:,:, 0], v[:,:,1], units="width")
+            plt.title(title)
+            plt.show()
+            plt.clf()
     
     def print_vector(self, s, v, full=False):
         if self.DEBUG:
@@ -324,26 +332,31 @@ class CFDSimulator(BaseSimulator):
         w0 = self.velocities 
         self.print_vector("w0", w0[:,:,0])
         self.bmap, self.iteration = self.plot_change(self.iteration, w0, self.bmap)
+        self.plot_field(w0, "w0")
 
         w1 = self.add_force(w0, dt, self.forces)
         self.print_vector("w1", w1[:,:,0])
         self.bmap, self.iteration = self.plot_change(self.iteration, w1, self.bmap)
-        
+        self.plot_field(w1, "w1")
+
         # w2 = self.advection(w1, dt, self.path)
         # self.path = self.update_path(self.path, w1, dt)
         w2 = w1.copy()
         w2 =  w1 - dt * self.advection_primitive(w1)
         self.print_vector("w2", w2[:,:,0])
         self.bmap, self.iteration = self.plot_change(self.iteration, w2, self.bmap)
-        
+        self.plot_field(w2, "w2")
+
         # w3 = self.diffusion(w2, dt)
         w3 = w2 + dt * self.viscosity * self.compute_laplacian(w2, self.h, self.h)
         self.print_vector("w3", w3[:,:,0])
         self.bmap, self.iteration = self.plot_change(self.iteration, w3, self.bmap)
-        
+        self.plot_field(w3, "w3")
+
         w4, p = self.projection(w3, dt)
         self.velocities = w4 
         self.pressure = p 
+        self.plot_field(w4, "w4")
 
         self.densities = p 
         
