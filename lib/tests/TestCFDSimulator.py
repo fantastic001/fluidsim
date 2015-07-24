@@ -216,9 +216,9 @@ class TestCFDSimulator(unittest.TestCase):
         u[:,:,0] = x**2 + y**2
         u[:,:,1] = 2*x**2 + y**2
         w, p = simulator.projection(u, dt)
-        nptest.assert_array_almost_equal(simulator.compute_divergence(w, simulator.h, simulator.h), expected, decimal=-3)
+        nptest.assert_array_almost_equal(simulator.compute_divergence(w, simulator.h, simulator.h), expected)
 
         u[:,:,0] = x
         u[:,:,1] = y
         w, p = simulator.projection(u, dt)
-        nptest.assert_array_almost_equal(simulator.compute_divergence(w, simulator.h, simulator.h), expected, decimal=-3)
+        nptest.assert_array_almost_equal(simulator.compute_divergence(w, simulator.h, simulator.h), expected)

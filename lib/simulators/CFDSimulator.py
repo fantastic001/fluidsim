@@ -274,7 +274,7 @@ class CFDSimulator(BaseSimulator):
         #P = scipy.sparse.linalg.inv(diag_M).dot(M)
         
         #p_ = scipy.sparse.linalg.spsolve(M, c)
-        p_ = self.poisson(M, c)
+        p_ = self.poisson(M, c/dt)
         """
         for s in range(self.size):
             p_[s] = p_[s] / diag_M[s,s]
@@ -295,7 +295,7 @@ class CFDSimulator(BaseSimulator):
         #self.print_vector("condition number of system: ", self.get_condition_number(M))
         #self.print_vector("condition number of preconditioned system: ", self.get_condition_number(P))
         #self.print_vector("Condition number of diagonalized matrix: ", self.get_condition_number(diag_M))
-        w4 = w3 - grad_p 
+        w4 = w3 - dt*grad_p 
         return (w4, p)
 
     def start(self):
