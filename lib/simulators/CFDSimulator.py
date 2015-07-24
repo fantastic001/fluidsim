@@ -10,11 +10,20 @@ import scipy.sparse.linalg
 
 import matplotlib.pyplot as plt 
 
+import os.path
+
 class CFDSimulator(BaseSimulator):
     
     DEBUG = True
     DEBUG_BREAK = False
     DEBUG_PLOT = False
+    
+    def save_sparse_csr(self, filename,array):
+        np.savez(filename,data = array.data ,indices=array.indices, indptr =array.indptr, shape=array.shape)
+
+    def load_sparse_csr(self, filename):
+        loader = np.load(filename)
+        return scipy.sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape=loader["shape"])
 
     def get_condition_number(self, M):
         return scipy.sparse.linalg.onenormest(M) * scipy.sparse.linalg.onenormest(scipy.sparse.linalg.inv(M))
@@ -88,10 +97,19 @@ class CFDSimulator(BaseSimulator):
         return self.boundary_up(i,j) or self.boundary_left(i,j) or self.boundary_right(i,j) or self.boundary_down(i,j)
 
     def get_laplacian_operator(self):
+        cache_filename = "cache/A-%d-%d-%f.npz" % (self.n, self.m, self.h)
+        
         # Computing laplacian operator 
         size = int(self.n/self.h) * int(self.m / self.h)
         c = int(self.m/self.h)
-        A = scipy.sparse.csc_matrix((size, size))
+        I = scipy.sparse.eye(size)
+
+        # see if there's cached one 
+        if os.path.isfile(cache_filename):
+            A = self.load_sparse_csr(cache_filename)
+            return (A, I, size)
+        
+        A = scipy.sparse.csr_matrix((size, size))
         for iy1 in self.ay:
             for ix1 in self.ax:
                 iix1 = int(ix1/self.h)
@@ -106,10 +124,16 @@ class CFDSimulator(BaseSimulator):
                     A[s, s-1] = 1
                     A[s,s+c] = 1 
                     A[s,s-c] = 1
-        I = scipy.sparse.eye(size)
+        self.save_sparse_csr(cache_filename, A)
         return (A, I, size)
     
     def get_pressure_laplacian_operator(self, M):
+        A_cache_filename = "cache/Ap-%d-%d-%f.npz" % (self.n, self.m, self.h)
+        b_cache_filename = "cache/bp-%d-%d-%f.npz" % (self.n, self.m, self.h)
+        if os.path.isfile(A_cache_filename) and os.path.isfile(b_cache_filename):
+            A = self.load_sparse_csr(A_cache_filename)
+            b = self.load_sparse_csr(b_cache_filename)
+            return (A,b)
         A = M.copy()
         b = np.ones(self.size)
         columns = int(self.m/self.h)
@@ -135,6 +159,8 @@ class CFDSimulator(BaseSimulator):
                     if self.boundary_right(i,j):
                         A[s,s + columns] = 1
                         A[s,s - columns] = 1
+        self.save_sparse_csr(A_cache_filename, A)
+        self.save_sparse_csr(b_cache_filename, A)
         return (A, b)
 
     def pressure_boundaries(self, M, c):
