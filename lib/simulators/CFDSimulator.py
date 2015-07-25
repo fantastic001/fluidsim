@@ -17,7 +17,7 @@ class CFDSimulator(BaseSimulator):
     DEBUG = True
     DEBUG_BREAK = False
     DEBUG_PLOT = False
-    DEBUG_INTERACTIVE_PLOTS = True
+    DEBUG_INTERACTIVE_PLOTS = False
     
     def save_sparse_csr(self, filename,array):
         np.savez(filename,data = array.data ,indices=array.indices, indptr =array.indptr, shape=array.shape)
@@ -56,18 +56,18 @@ class CFDSimulator(BaseSimulator):
     def compute_speed(self, v):
         return np.sqrt(v[:, :, 0]**2 + v[:, :, 1]**2)
     
-    def compute_gradient(self, a, dx, dy):
-        dy, dx = np.gradient(a, dy, dx, edge_order=2)
+    def compute_gradient(self, a, dx, dy, edge_order=2):
+        dy, dx = np.gradient(a, dy, dx, edge_order=edge_order)
         grad = np.zeros([a.shape[0], a.shape[1], 2])
         grad[:,:,0] = dx 
         grad[:,:,1] = dy
         return grad
 
-    def compute_divergence(self, f, dx, dy):
+    def compute_divergence(self, f, dx, dy, edge_order=2):
         p = f[:,:,0]
         q = f[:,:,1]
-        dp = self.compute_gradient(p, dx, dy) 
-        dq = self.compute_gradient(q, dx, dy)
+        dp = self.compute_gradient(p, dx, dy, edge_order=edge_order) 
+        dq = self.compute_gradient(q, dx, dy, edge_order=edge_order)
         dpdx = dp[:,:,0]
         dqdy = dq[:,:,1]
         return dpdx + dqdy
@@ -123,6 +123,7 @@ class CFDSimulator(BaseSimulator):
                 iix1 = int(ix1/self.h)
                 iiy1 = int(iy1/self.h)
                 s = (self.m * iiy1)/self.h + iix1
+                self.print_vector("Index: ", s)
                 #print("ix iy = %d %d" % (ix1, iy1))
                 #print("iix1, iiy1 = %d %d" % (iix1, iiy1))
                 #print("index %d" % s)
@@ -246,47 +247,74 @@ class CFDSimulator(BaseSimulator):
         w3[:,:,1] = w31.reshape([int(self.n/self.h), int(self.m/self.h)])
         return w3
     
+    def scale_down(self, A, b):
+        s = int(self.size)
+        step = int(s/10)
+        B = A[0:s:step, 0:s:step]
+        c = b[0:s:step]
+        return (B, c)
+
+    def scale_up(self, p):
+        p.reshape(10, 10)
+        x = np.linspace(0, self.m, 10)
+        y = np.linspace(0, self.n, 10)
+        func = scipy.interpolate.RectBivariateSpline(x,y, p)
+        return func(np.linspace(0, self.m, self.m), np.linspace(0, self.n, self.n))
+
     def poisson(self, A, w):
-        # S = scipy.sparse.tril(A, 0) 
-        S = A * scipy.sparse.identity(A.shape[0])
+        #S = A * scipy.sparse.identity(A.shape[0])
+        # S = scipy.sparse.tril(A)
+        # T = S - A
+
+        S = np.tril(A)
         T = S - A
+
         # B = scipy.sparse.linalg.inv(S).dot(T)
         # el, ev = scipy.sparse.linalg.eigs(B)
         # self.print_vector("Eigenvalues of inv(S)T: ", el)
         # self.print_vector("Rate of convergence: ", el.max())
         # self.print_vector("W: ", w)
-        p = np.zeros(self.size)
+        p = np.zeros(A.shape[0])
         for i in range(20):
-            p = scipy.sparse.linalg.spsolve(S, T.dot(p) + w)
-            self.print_vector("Pressure: ", p)
+            #p = scipy.sparse.linalg.spsolve(S, w + T.dot(p))
+            p = np.linalg.solve(S, w + T.dot(p))
+            # self.print_vector("Pressure: ", p)
             # test = w.reshape([self.n, self.m]) - self.compute_divergence(self.compute_gradient(p.reshape([self.n, self.m]), self.h, self.h), self.h, self.h)
             # self.print_vector("divergence: ", test) 
         return p
 
-
     def projection(self, w3, dt):
         self.print_vector("w3: ", w3)
-        div_w3 = self.compute_divergence(w3, self.h, self.h)
+        div_w3 = self.compute_divergence(w3, self.h, self.h, edge_order=1)
         div_w3_reshaped = div_w3.reshape(self.size)
         self.print_vector("div w3: ", div_w3_reshaped)
         M, c = self.pressure_boundaries(self.A, div_w3_reshaped)
+        #if (M.todense() == M.todense().transpose()).all():
+        #    print("M is symmetric")
         #diag_M = M * scipy.sparse.identity(M.shape[0])
         #P = scipy.sparse.linalg.inv(diag_M).dot(M)
         
         #p_ = scipy.sparse.linalg.spsolve(M, c)
-        p_ = self.poisson(M, c/dt)
+        #np.savetxt("A.csv", M.todense(), delimiter=",")
+        #np.savetxt("b.csv", c, delimiter=",")
+        #exit(0)
+        M_, c_ = self.scale_down(M.todense(), c)
+        self.print_vector("Scaled laplacian operator: ", M_)
+        self.print_vector("Scaled div(w3) operator: ", c_)
+        p_ = self.poisson(dt*M_, c_)
         """
         for s in range(self.size):
             p_[s] = p_[s] / diag_M[s,s]
         """
-        p = p_.reshape(int(self.n/self.h), int(self.m/self.h))
+        #p = p_.reshape(int(self.n/self.h), int(self.m/self.h))
+        p = self.scale_up(p_)
         # Set boundaries back 
         #p[0,:] = p[1,:]
         #p[-1,:] = p[-2, :]
         #p[:,0] = p[:,1]
         #p[:,-1] = p[:,-2]
 
-        grad_p = self.compute_gradient(p, self.h, self.h)
+        grad_p = self.compute_gradient(p, self.h, self.h, edge_order=1)
         #self.print_vector("b = ", c, full=True)
         #self.print_vector("A = ", M.todense(), full=True)
         #self.print_vector("A inverse", scipy.sparse.linalg.inv(M).todense(), full=True)
@@ -354,6 +382,7 @@ class CFDSimulator(BaseSimulator):
         self.plot_field(w3, "w3")
 
         w4, p = self.projection(w3, dt)
+        self.print_vector("w4", w4[:,:,0])
         self.velocities = w4 
         self.pressure = p 
         self.plot_field(w4, "w4")
