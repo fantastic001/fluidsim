@@ -248,14 +248,18 @@ class CFDSimulator(BaseSimulator):
         return w3
     
     def scale_down(self, A, b):
-        s = int(self.size)
-        step = int(s/10)
-        B = A[0:s:step, 0:s:step]
-        c = b[0:s:step]
+        row_step = int(self.n/10)
+        column_step = int(self.m / 10)
+        step = int(self.size/100)
+        b_normal = b.reshape(self.n, self.m)
+        c = b_normal[0:self.n:row_step, 0:self.m:column_step].reshape(100)
+        #A4D = A.reshape([self.n, self.m, self.n, self.m])
+        B = A[0:self.size:step, 0:self.size:step]
+        #B = A[0:self.n:row_step, 0:self.m:column_step, 0:self.n:row_step, 0:self.m:column_step].reshape([100, 100])
         return (B, c)
 
     def scale_up(self, p):
-        p.reshape(10, 10)
+        p = p.reshape(10, 10)
         x = np.linspace(0, self.m, 10)
         y = np.linspace(0, self.n, 10)
         func = scipy.interpolate.RectBivariateSpline(x,y, p)
@@ -263,10 +267,10 @@ class CFDSimulator(BaseSimulator):
 
     def poisson(self, A, w):
         #S = A * scipy.sparse.identity(A.shape[0])
-        # S = scipy.sparse.tril(A)
+        S = scipy.sparse.tril(A)
         # T = S - A
 
-        S = np.tril(A)
+        # S = np.tril(A)
         T = S - A
 
         # B = scipy.sparse.linalg.inv(S).dot(T)
@@ -276,8 +280,9 @@ class CFDSimulator(BaseSimulator):
         # self.print_vector("W: ", w)
         p = np.zeros(A.shape[0])
         for i in range(20):
-            #p = scipy.sparse.linalg.spsolve(S, w + T.dot(p))
-            p = np.linalg.solve(S, w + T.dot(p))
+            self.print_vector("shapes, ", [p.shape, w.shape])
+            p = scipy.sparse.linalg.spsolve(S, w + T.dot(p))
+            # p = np.linalg.solve(S, w + T.dot(p))
             # self.print_vector("Pressure: ", p)
             # test = w.reshape([self.n, self.m]) - self.compute_divergence(self.compute_gradient(p.reshape([self.n, self.m]), self.h, self.h), self.h, self.h)
             # self.print_vector("divergence: ", test) 
@@ -298,7 +303,7 @@ class CFDSimulator(BaseSimulator):
         #np.savetxt("A.csv", M.todense(), delimiter=",")
         #np.savetxt("b.csv", c, delimiter=",")
         #exit(0)
-        M_, c_ = self.scale_down(M.todense(), c)
+        M_, c_ = self.scale_down(M, c)
         self.print_vector("Scaled laplacian operator: ", M_)
         self.print_vector("Scaled div(w3) operator: ", c_)
         p_ = self.poisson(dt*M_, c_)
