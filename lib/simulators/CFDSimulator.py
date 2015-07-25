@@ -142,13 +142,14 @@ class CFDSimulator(BaseSimulator):
             A = self.load_sparse_csr(A_cache_filename)
             b = self.load_sparse_csr(b_cache_filename)
             return (A,b)
-        A = M.copy()
+        A = M.tolil()
         b = np.ones(self.size)
         columns = int(self.m/self.h)
         rows = int(self.n/self.h)
         for i in range(rows):
             for j in range(columns):
                 s = columns * i + j
+                self.print_vector("Pressure laplacian index: ", s)
                 if self.boundary(i,j):
                     A[s,s] = -2
                     if (i,j) in [(0,0), (0, columns-1), (rows-1, 0), (rows-1, columns-1)]:
@@ -167,11 +168,12 @@ class CFDSimulator(BaseSimulator):
                     if self.boundary_right(i,j):
                         A[s,s + columns] = 1
                         A[s,s - columns] = 1
+        A = A.tocsr()
         self.save_sparse_csr(A_cache_filename, A)
         self.save_sparse_csr(b_cache_filename, A)
         return (A, b)
 
-    def pressure_boundaries(self, M, c):
+    def pressure_boundaries(self, c):
         b = c*self.bp
         return (self.Ap,b)
     
@@ -293,7 +295,7 @@ class CFDSimulator(BaseSimulator):
         div_w3 = self.compute_divergence(w3, self.h, self.h, edge_order=1)
         div_w3_reshaped = div_w3.reshape(self.size)
         self.print_vector("div w3: ", div_w3_reshaped)
-        M, c = self.pressure_boundaries(self.A, div_w3_reshaped)
+        M, c = self.pressure_boundaries(div_w3_reshaped)
         #if (M.todense() == M.todense().transpose()).all():
         #    print("M is symmetric")
         #diag_M = M * scipy.sparse.identity(M.shape[0])
