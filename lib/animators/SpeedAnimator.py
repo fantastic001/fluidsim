@@ -12,7 +12,7 @@ class SpeedAnimator(BaseAnimator):
         print("Iteration %d" % t)
         n,m = p.shape
         nb = np.ones(b.shape) - b
-        maximum = 1.
+        maximum = 20
         speed = np.sqrt(v[:,:,0]**2 + v[:,:,1]**2)
         mat = np.zeros([n,m,3])
         mat[:,:,0] = np.ones([n,m])*nb

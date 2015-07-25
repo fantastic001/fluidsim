@@ -237,17 +237,6 @@ class CFDSimulator(BaseSimulator):
         newpath[:,:,1] = path[:,:,1] + w1[:,:,1]*dt
         return newpath
 
-    def diffusion(self, w2, dt):
-        w2_x = w2[:,:,0].reshape(self.size)
-        w2_y = w2[:,:,1].reshape(self.size)
-        M, c_x, c_y = self.velocity_boundaries(self.A, w2_x, w2_y)
-        w30 = scipy.sparse.linalg.spsolve(self.I - (self.viscosity * dt)*M, c_x)
-        w31 = scipy.sparse.linalg.spsolve(self.I - (self.viscosity * dt)*M, c_y)
-        w3 = np.zeros([int(self.n/self.h), int(self.m/self.h), 2])
-        w3[:,:,0] = w30.reshape([int(self.n/self.h), int(self.m/self.h)])
-        w3[:,:,1] = w31.reshape([int(self.n/self.h), int(self.m/self.h)])
-        return w3
-    
     def scale_down(self, A, b, scale=10):
         row_step = int(self.n/scale)
         column_step = int(self.m / scale)
@@ -265,6 +254,25 @@ class CFDSimulator(BaseSimulator):
         y = np.linspace(0, self.n, scale)
         func = scipy.interpolate.RectBivariateSpline(x,y, p)
         return func(np.linspace(0, self.m, self.m), np.linspace(0, self.n, self.n))
+    
+    def diffusion(self, w2, dt):
+        scale = 10
+        w2_x = w2[:,:,0].reshape(self.size)
+        w2_y = w2[:,:,1].reshape(self.size)
+        M, c_x, c_y = self.velocity_boundaries(self.A, w2_x, w2_y)
+        L = self.I - (self.viscosity * dt)*M
+        L1, c_x = self.scale_down(L, c_x)
+        L2, c_y = self.scale_down(L, c_y)
+        w30 = scipy.sparse.linalg.spsolve(L1, c_x)
+        w31 = scipy.sparse.linalg.spsolve(L2, c_y)
+        
+        w30 = self.scale_up(w30)
+        w31 = self.scale_up(w31)
+
+        w3 = np.zeros([int(self.n/self.h), int(self.m/self.h), 2])
+        w3[:,:,0] = w30.reshape([int(self.n/self.h), int(self.m/self.h)])
+        w3[:,:,1] = w31.reshape([int(self.n/self.h), int(self.m/self.h)])
+        return w3
 
     def poisson(self, A, w):
         #S = A * scipy.sparse.identity(A.shape[0])
@@ -290,7 +298,7 @@ class CFDSimulator(BaseSimulator):
         return p
 
     def projection(self, w3, dt):
-        scale = 4
+        scale = 10
         self.print_vector("w3: ", w3)
         div_w3 = self.compute_divergence(w3, self.h, self.h, edge_order=1)
         div_w3_reshaped = div_w3.reshape(self.size)
@@ -341,7 +349,7 @@ class CFDSimulator(BaseSimulator):
         self.forces = np.zeros([int(self.n/self.h), int(self.m/self.h), 2]) # Will be removed and modeled differently
         # Set forces :)))
         for fi in range(int(self.n/self.h)):
-            self.forces[fi, :, 0] = np.linspace(1000, 0, self.m/self.h)
+            self.forces[fi, :, 0] = np.linspace(100, 0, self.m/self.h)
         
         self.y,self.x = np.mgrid[0:self.n:self.h, 0:self.m:self.h]
         self.ax = np.arange(0, self.m, self.h)
@@ -374,16 +382,16 @@ class CFDSimulator(BaseSimulator):
         self.bmap, self.iteration = self.plot_change(self.iteration, w1, self.bmap)
         self.plot_field(w1, "w1")
 
-        # w2 = self.advection(w1, dt, self.path)
-        # self.path = self.update_path(self.path, w1, dt)
-        w2 = w1.copy()
-        w2 =  w1 - dt * self.advection_primitive(w1)
+        w2 = self.advection(w1, dt, self.path)
+        self.path = self.update_path(self.path, w1, dt)
+        # w2 = w1.copy()
+        # w2 =  w1 - dt * self.advection_primitive(w1)
         self.print_vector("w2", w2[:,:,0])
         self.bmap, self.iteration = self.plot_change(self.iteration, w2, self.bmap)
         self.plot_field(w2, "w2")
 
-        # w3 = self.diffusion(w2, dt)
-        w3 = w2 + dt * self.viscosity * self.compute_laplacian(w2, self.h, self.h)
+        w3 = self.diffusion(w2, dt)
+        # w3 = w2 + dt * self.viscosity * self.compute_laplacian(w2, self.h, self.h)
         self.print_vector("w3", w3[:,:,0])
         self.bmap, self.iteration = self.plot_change(self.iteration, w3, self.bmap)
         self.plot_field(w3, "w3")
@@ -399,4 +407,6 @@ class CFDSimulator(BaseSimulator):
         self.print_vector("div v", self.compute_divergence(self.velocities, self.h, self.h))
         self.bmap, self.iteration = self.plot_change(self.iteration, w4, self.bmap)
         
+        self.print_vector("divergence error", np.abs(self.compute_divergence(self.velocities, self.h, self.h)).max())
+
         self.forces.fill(0)
