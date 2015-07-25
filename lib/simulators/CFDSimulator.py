@@ -117,12 +117,10 @@ class CFDSimulator(BaseSimulator):
             A = self.load_sparse_csr(cache_filename)
             return (A, I, size)
         
-        A = scipy.sparse.csr_matrix((size, size))
-        for iy1 in self.ay:
-            for ix1 in self.ax:
-                iix1 = int(ix1/self.h)
-                iiy1 = int(iy1/self.h)
-                s = (self.m * iiy1)/self.h + iix1
+        A = scipy.sparse.lil_matrix((size, size))
+        for iiy1 in range(int(self.n)):
+            for iix1 in range(int(self.m)):
+                s = (self.m * iiy1) + iix1
                 self.print_vector("Index: ", s)
                 #print("ix iy = %d %d" % (ix1, iy1))
                 #print("iix1, iiy1 = %d %d" % (iix1, iiy1))
@@ -133,6 +131,7 @@ class CFDSimulator(BaseSimulator):
                     A[s, s-1] = 1
                     A[s,s+c] = 1 
                     A[s,s-c] = 1
+        A = A.tocsr()
         self.save_sparse_csr(cache_filename, A)
         return (A, I, size)
     
@@ -217,8 +216,8 @@ class CFDSimulator(BaseSimulator):
     def add_force(self, v, dt, f):
         return v + dt*f
 
-    def advection(self, v, dt, path):
-        w2 = v.copy()
+    def advection(self, w1, dt, path):
+        w2 = w1.copy()
         for j in self.ax:
             for i in self.ay:
                 psi = path[i,j,1]
@@ -247,21 +246,21 @@ class CFDSimulator(BaseSimulator):
         w3[:,:,1] = w31.reshape([int(self.n/self.h), int(self.m/self.h)])
         return w3
     
-    def scale_down(self, A, b):
-        row_step = int(self.n/10)
-        column_step = int(self.m / 10)
-        step = int(self.size/100)
+    def scale_down(self, A, b, scale=10):
+        row_step = int(self.n/scale)
+        column_step = int(self.m / scale)
+        step = int(self.size/scale**2)
         b_normal = b.reshape(self.n, self.m)
-        c = b_normal[0:self.n:row_step, 0:self.m:column_step].reshape(100)
+        c = b_normal[0:self.n:row_step, 0:self.m:column_step].reshape(scale**2)
         #A4D = A.reshape([self.n, self.m, self.n, self.m])
         B = A[0:self.size:step, 0:self.size:step]
         #B = A[0:self.n:row_step, 0:self.m:column_step, 0:self.n:row_step, 0:self.m:column_step].reshape([100, 100])
         return (B, c)
 
-    def scale_up(self, p):
-        p = p.reshape(10, 10)
-        x = np.linspace(0, self.m, 10)
-        y = np.linspace(0, self.n, 10)
+    def scale_up(self, p, scale=10):
+        p = p.reshape(scale, scale)
+        x = np.linspace(0, self.m, scale)
+        y = np.linspace(0, self.n, scale)
         func = scipy.interpolate.RectBivariateSpline(x,y, p)
         return func(np.linspace(0, self.m, self.m), np.linspace(0, self.n, self.n))
 
@@ -289,6 +288,7 @@ class CFDSimulator(BaseSimulator):
         return p
 
     def projection(self, w3, dt):
+        scale = 4
         self.print_vector("w3: ", w3)
         div_w3 = self.compute_divergence(w3, self.h, self.h, edge_order=1)
         div_w3_reshaped = div_w3.reshape(self.size)
@@ -303,7 +303,7 @@ class CFDSimulator(BaseSimulator):
         #np.savetxt("A.csv", M.todense(), delimiter=",")
         #np.savetxt("b.csv", c, delimiter=",")
         #exit(0)
-        M_, c_ = self.scale_down(M, c)
+        M_, c_ = self.scale_down(M, c, scale=scale)
         self.print_vector("Scaled laplacian operator: ", M_)
         self.print_vector("Scaled div(w3) operator: ", c_)
         p_ = self.poisson(dt*M_, c_)
@@ -312,7 +312,7 @@ class CFDSimulator(BaseSimulator):
             p_[s] = p_[s] / diag_M[s,s]
         """
         #p = p_.reshape(int(self.n/self.h), int(self.m/self.h))
-        p = self.scale_up(p_)
+        p = self.scale_up(p_, scale=scale)
         # Set boundaries back 
         #p[0,:] = p[1,:]
         #p[-1,:] = p[-2, :]
@@ -339,7 +339,7 @@ class CFDSimulator(BaseSimulator):
         self.forces = np.zeros([int(self.n/self.h), int(self.m/self.h), 2]) # Will be removed and modeled differently
         # Set forces :)))
         for fi in range(int(self.n/self.h)):
-            self.forces[fi, :, 0] = np.linspace(100, 0, self.m/self.h)
+            self.forces[fi, :, 0] = np.linspace(1000, 0, self.m/self.h)
         
         self.y,self.x = np.mgrid[0:self.n:self.h, 0:self.m:self.h]
         self.ax = np.arange(0, self.m, self.h)
