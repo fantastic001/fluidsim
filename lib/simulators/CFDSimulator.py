@@ -222,8 +222,8 @@ class CFDSimulator(BaseSimulator):
 
     def advection(self, w1, dt, path):
         w2 = w1.copy()
-        for j in self.ax:
-            for i in self.ay:
+        for j in range(int(self.m)):
+            for i in range(int(self.n)):
                 psi = path[i,j,1]
                 psj = path[i,j,0]
                 if psi < 0 or psi >= self.n or psj < 0 or psj >= self.m:
