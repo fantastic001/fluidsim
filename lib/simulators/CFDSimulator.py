@@ -14,7 +14,7 @@ import os.path
 
 class CFDSimulator(BaseSimulator):
     
-    DEBUG = True
+    DEBUG = False
     DEBUG_BREAK = False
     DEBUG_PLOT = False
     DEBUG_INTERACTIVE_PLOTS = False
@@ -188,8 +188,8 @@ class CFDSimulator(BaseSimulator):
                 s = columns * i + j
                 if self.boundary(i,j):
                     A[s,s] = 1
-                    c_x[s] = 0
-                    c_y[s] = 0
+                    b_x[s] = 0
+                    b_y[s] = 0
                     #if self.boundary_up(i,j) or self.boundary_down(i,j):
                     #    b_y[s] = 0
                     #if self.boundary_right(i,j) or self.boundary_left(i,j):
@@ -273,9 +273,11 @@ class CFDSimulator(BaseSimulator):
         L2, c_y = self.scale_down(L, c_y)
         self.print_vector("L1", L1.todense())
         self.print_vector("L2", L2.todense())
+        self.print_vector("c_x", c_x)
+        self.print_vector("c_y", c_y)
         w30 = scipy.sparse.linalg.spsolve(L1, c_x)
         w31 = scipy.sparse.linalg.spsolve(L2, c_y)
-
+        
         w30 = self.scale_up(w30)
         w31 = self.scale_up(w31)
 
@@ -284,15 +286,15 @@ class CFDSimulator(BaseSimulator):
         w3[:,:,1] = w31.reshape([int(self.n/self.h), int(self.m/self.h)])
         
         # at boundaries, velocity is zero 
-        w3[0,:, 0] = 0
-        w3[-1,:, 0] = 0
-        w3[:, 0, 0] = 0
-        w3[:,-1, 0] = 0
+        #w3[0,:, 0] = 0
+        #w3[-1,:, 0] = 0
+        #w3[:, 0, 0] = 0
+        #w3[:,-1, 0] = 0
 
-        w3[0,:, 1] = 0
-        w3[-1,:, 1] = 0
-        w3[:,0, 1] = 0
-        w3[:,-1, 1] = 0
+        #w3[0,:, 1] = 0
+        #w3[-1,:, 1] = 0
+        #w3[:,0, 1] = 0
+        #w3[:,-1, 1] = 0
         
         return w3
 
@@ -363,6 +365,33 @@ class CFDSimulator(BaseSimulator):
         w4 = w3 - dt*grad_p 
         return (w4, p)
 
+    def advect_substance(self, u, h, path, dt):
+        """
+        h1 = h.copy()
+        for j in range(int(self.m)):
+            for i in range(int(self.n)):
+                psi = path[i,j,1]
+                psj = path[i,j,0]
+                if psi < 0 or psi >= self.n or psj < 0 or psj >= self.m:
+                    #w2[i,j,0] = 0
+                    #w2[i,j,1] = 0
+                    pass
+                else:
+                    h1[psi,psj] = h[i, j]
+        return h1
+        """
+        # diffusion constant 
+        s = 1
+        k = 1
+        grad_h = self.compute_gradient(h, self.h, self.h)
+        a = u[:,:,0]*grad_h[:,:,0] + u[:,:,1]*grad_h[:,:,1]
+        uh = u.copy()
+        uh[:,:,0] = h*u[:,:,0]
+        uh[:,:,1] = h*u[:,:,1]
+        duh = self.compute_divergence(uh, self.h, self.h)
+        lh = self.compute_divergence(self.compute_gradient(h, self.h, self.h), self.h, self.h)
+        return h - s*dt*duh + k*lh*dt
+
     def start(self):
         self.deltas = []
 
@@ -424,7 +453,7 @@ class CFDSimulator(BaseSimulator):
         self.pressure = p 
         self.plot_field(w4, "w4")
 
-        self.densities = p 
+        self.densities = self.advect_substance(self.velocities, self.densities, self.path, dt)
         
         self.print_vector("div v", self.compute_divergence(self.velocities, self.h, self.h))
         self.bmap, self.iteration = self.plot_change(self.iteration, w4, self.bmap)
@@ -432,3 +461,4 @@ class CFDSimulator(BaseSimulator):
         self.print_vector("divergence error", np.abs(self.compute_divergence(self.velocities, self.h, self.h)).max())
 
         self.forces.fill(0)
+        self.print_vector("Substance: ", self.densities)
