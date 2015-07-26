@@ -38,7 +38,7 @@ class CFDSimulator(BaseSimulator):
 
     def plot_field(self, v, title=""):
         if self.DEBUG_INTERACTIVE_PLOTS:
-            plt.quiver(v[:,:, 0], v[:,:,1], units="width")
+            plt.quiver(v[::10,::10, 0], v[::10,::10,1], units="width")
             plt.title(title)
             plt.show()
             plt.clf()
@@ -188,10 +188,12 @@ class CFDSimulator(BaseSimulator):
                 s = columns * i + j
                 if self.boundary(i,j):
                     A[s,s] = 1
-                    if self.boundary_up(i,j) or self.boundary_down(i,j):
-                        b_y[s] = 0
-                    if self.boundary_right(i,j) or self.boundary_left(i,j):
-                        b_x[s] = 0
+                    c_x[s] = 0
+                    c_y[s] = 0
+                    #if self.boundary_up(i,j) or self.boundary_down(i,j):
+                    #    b_y[s] = 0
+                    #if self.boundary_right(i,j) or self.boundary_left(i,j):
+                    #    b_x[s] = 0
         return (A,b_x, b_y)
     
     
@@ -224,17 +226,23 @@ class CFDSimulator(BaseSimulator):
             for i in self.ay:
                 psi = path[i,j,1]
                 psj = path[i,j,0]
-                psi = np.clip(int(psi), 0, self.n/self.h - 1)
-                psj = np.clip(int(psj), 0, self.m/self.h - 1)
-                w2[i,j,0] = w1[psi, psj, 0]
-                w2[i,j,1] = w1[psi, psj, 1]
+                if psi < 0 or psi >= self.n or psj < 0 or psj >= self.m:
+                    #w2[i,j,0] = 0
+                    #w2[i,j,1] = 0
+                    pass
+                else:
+                    w2[psi,psj,0] = w1[i, j, 0]
+                    w2[psi,psj,1] = w1[i, j, 1]
         return w2
         
     def update_path(self, path, w1, dt):
         # set new paths 
         newpath = path.copy()
-        newpath[:,:,0] = path[:,:,0] + w1[:,:,0]*dt
-        newpath[:,:,1] = path[:,:,1] + w1[:,:,1]*dt
+        for i in range(int(self.n)):
+            for j in range(int(self.m)):
+                if not (path[i,j,0] < 0 or path[i,j,0] >= self.m or path[i,j,1] < 0 or path[i,j,1] >= self.n):
+                    newpath[i,j,0] += dt*w1[path[i,j,1], path[i,j,0], 0]
+                    newpath[i,j,1] += dt*w1[path[i,j,1], path[i,j,0], 1]
         return newpath
 
     def scale_down(self, A, b, scale=10):
@@ -263,15 +271,29 @@ class CFDSimulator(BaseSimulator):
         L = self.I - (self.viscosity * dt)*M
         L1, c_x = self.scale_down(L, c_x)
         L2, c_y = self.scale_down(L, c_y)
+        self.print_vector("L1", L1.todense())
+        self.print_vector("L2", L2.todense())
         w30 = scipy.sparse.linalg.spsolve(L1, c_x)
         w31 = scipy.sparse.linalg.spsolve(L2, c_y)
-        
+
         w30 = self.scale_up(w30)
         w31 = self.scale_up(w31)
 
         w3 = np.zeros([int(self.n/self.h), int(self.m/self.h), 2])
         w3[:,:,0] = w30.reshape([int(self.n/self.h), int(self.m/self.h)])
         w3[:,:,1] = w31.reshape([int(self.n/self.h), int(self.m/self.h)])
+        
+        # at boundaries, velocity is zero 
+        w3[0,:, 0] = 0
+        w3[-1,:, 0] = 0
+        w3[:, 0, 0] = 0
+        w3[:,-1, 0] = 0
+
+        w3[0,:, 1] = 0
+        w3[-1,:, 1] = 0
+        w3[:,0, 1] = 0
+        w3[:,-1, 1] = 0
+        
         return w3
 
     def poisson(self, A, w):
@@ -382,10 +404,10 @@ class CFDSimulator(BaseSimulator):
         self.bmap, self.iteration = self.plot_change(self.iteration, w1, self.bmap)
         self.plot_field(w1, "w1")
 
-        w2 = self.advection(w1, dt, self.path)
         self.path = self.update_path(self.path, w1, dt)
-        # w2 = w1.copy()
-        # w2 =  w1 - dt * self.advection_primitive(w1)
+        w2 = self.advection(w1, dt, self.path)
+        #w2 = w1.copy()
+        #w2 =  w1 - dt * self.advection_primitive(w1)
         self.print_vector("w2", w2[:,:,0])
         self.bmap, self.iteration = self.plot_change(self.iteration, w2, self.bmap)
         self.plot_field(w2, "w2")
