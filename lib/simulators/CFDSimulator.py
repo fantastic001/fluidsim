@@ -19,6 +19,12 @@ class CFDSimulator(BaseSimulator):
     DEBUG_PLOT = False
     DEBUG_INTERACTIVE_PLOTS = False
     
+    def get_boundaries_hash(self):
+        if (self.boundaries == 0).all():
+            return ""
+        else:
+            return str(hash(self.boundaries.tostring()))
+
     def save_sparse_csr(self, filename,array):
         np.savez(filename,data = array.data ,indices=array.indices, indptr =array.indptr, shape=array.shape)
 
@@ -95,17 +101,20 @@ class CFDSimulator(BaseSimulator):
     def boundary_up(self, i,j):
         return i==0 or self.boundaries[i-1, j]
     def boundary_down(self, i,j):
-        return i==int(self.n/self.h)-1 or self.boundaries[i+1, j]
+        return i==self.boundaries.shape[0]-1 or self.boundaries[i+1, j]
     def boundary_left(self, i,j):
         return j==0 or self.boundaries[i, j-1]
     def boundary_right(self, i,j):
-        return j==int(self.m/self.h)-1 or self.boundaries[i, j+1]
+        return j==self.boundaries.shape[1]-1 or self.boundaries[i, j+1]
+    
+    def boundary_edge(self, i, j):
+        return (self.boundary_up(i,j) and self.boundary_left(i,j)) or (self.boundary_up(i,j) and self.boundary_right(i,j)) or (self.boundary_down(i,j) and self.boundary_left(i,j)) or (self.boundary_down(i,j) and self.boundary_right(i,j))
 
     def boundary(self, i,j):
         return self.boundary_up(i,j) or self.boundary_left(i,j) or self.boundary_right(i,j) or self.boundary_down(i,j)
 
     def get_laplacian_operator(self):
-        cache_filename = "cache/A-%d-%d-%f.npz" % (self.n, self.m, self.h)
+        cache_filename = "cache/A-%d-%d-%f%s.npz" % (self.n, self.m, self.h, self.get_boundaries_hash())
         
         # Computing laplacian operator 
         size = int(self.n/self.h) * int(self.m / self.h)
@@ -136,8 +145,8 @@ class CFDSimulator(BaseSimulator):
         return (A, I, size)
     
     def get_pressure_laplacian_operator(self, M):
-        A_cache_filename = "cache/Ap-%d-%d-%f.npz" % (self.n, self.m, self.h)
-        b_cache_filename = "cache/bp-%d-%d-%f.npz" % (self.n, self.m, self.h)
+        A_cache_filename = "cache/Ap-%d-%d-%f%s.npz" % (self.n, self.m, self.h, self.get_boundaries_hash())
+        b_cache_filename = "cache/bp-%d-%d-%f%s.npz" % (self.n, self.m, self.h, self.get_boundaries_hash())
         if os.path.isfile(A_cache_filename) and os.path.isfile(b_cache_filename):
             A = self.load_sparse_csr(A_cache_filename)
             b = self.load_sparse_csr(b_cache_filename)
@@ -152,7 +161,7 @@ class CFDSimulator(BaseSimulator):
                 self.print_vector("Pressure laplacian index: ", s)
                 if self.boundary(i,j):
                     A[s,s] = -2
-                    if (i,j) in [(0,0), (0, columns-1), (rows-1, 0), (rows-1, columns-1)]:
+                    if self.boundary_edge(i,j) or self.boundaries[i,j]:
                         A[s,s] = 1 
                         b[s] = 0
                         continue
@@ -186,6 +195,10 @@ class CFDSimulator(BaseSimulator):
         for i in range(rows):
             for j in range(columns):
                 s = columns * i + j
+                if self.boundaries[i,j]:
+                    A[s,s] = 1
+                    b_x[s] = 0
+                    b_y[s] = 0
                 if self.boundary(i,j):
                     A[s,s] = 1
                     #b_x[s] = 0
@@ -196,7 +209,32 @@ class CFDSimulator(BaseSimulator):
                         b_x[s] = 0
         return (A,b_x, b_y)
     
+    def reset_solid_velocities(self, v):
+        w = v.copy()
+        n,m,d = v.shape
+        for i in range(n):
+            for j in range(m):
+                if self.boundaries[i,j]:
+                    w[i,j] = 0
+        return w 
     
+    def reset_edge_pressure(self, p_):
+        p = p_.copy()
+        n,m = p.shape
+        for i in range(n):
+            for j in range(m):
+                if self.boundary_left(i,j):
+                    p[i,j] = p_[i,j+1]
+                elif self.boundary_right(i,j):
+                    p[i,j] = p_[i,j-1]
+                elif self.boundary_up(i,j):
+                    p[i,j] = p_[i+1,j]
+                elif self.boundary_down(i,j):
+                    p[i,j] = p_[i-1,j]
+                else:
+                    pass
+        return p 
+
     def advection_primitive(self, u):
         u_x = u[:,:,0]
         u_y = u[:,:,1]
@@ -278,12 +316,20 @@ class CFDSimulator(BaseSimulator):
         func = scipy.interpolate.RectBivariateSpline(x,y, p)
         return func(np.linspace(0, self.m, self.m), np.linspace(0, self.n, self.n))
     
+    def scale_boundaries(self, scale=10):
+        self.tmp_boundaries = self.boundaries.copy()
+        self.boundaries = self.scale_down_field(self.boundaries, scale=scale)
+
+    def rescale_boundaries(self):
+        self.boundaries = self.tmp_boundaries.copy()
+
     def diffusion(self, w2, dt):
         scale = 10
         w2_x = w2[:,:,0].reshape(self.size)
         w2_y = w2[:,:,1].reshape(self.size)
         M, c_x, c_y = self.velocity_boundaries(self.A, w2_x, w2_y)
         L = self.I - (self.viscosity * dt)*M
+        self.scale_boundaries(scale=scale)
         L1, c_x = self.scale_down(L, c_x)
         L2, c_y = self.scale_down(L, c_y)
         self.print_vector("L1", L1.todense())
@@ -295,6 +341,7 @@ class CFDSimulator(BaseSimulator):
         
         w30 = self.scale_up(w30)
         w31 = self.scale_up(w31)
+        self.rescale_boundaries()
 
         w3 = np.zeros([int(self.n/self.h), int(self.m/self.h), 2])
         w3[:,:,0] = w30.reshape([int(self.n/self.h), int(self.m/self.h)])
@@ -351,6 +398,7 @@ class CFDSimulator(BaseSimulator):
         #np.savetxt("A.csv", M.todense(), delimiter=",")
         #np.savetxt("b.csv", c, delimiter=",")
         #exit(0)
+        self.scale_boundaries(scale=scale)
         M_, c_ = self.scale_down(M, c, scale=scale)
         self.print_vector("Scaled laplacian operator: ", M_)
         self.print_vector("Scaled div(w3) operator: ", c_)
@@ -362,12 +410,10 @@ class CFDSimulator(BaseSimulator):
         #p = p_.reshape(int(self.n/self.h), int(self.m/self.h))
         # Set boundaries back 
         p_ = p_.reshape(10,10)
-        p_[0,:] = p_[1,:]
-        p_[-1,:] = p_[-2, :]
-        p_[:,0] = p_[:,1]
-        p_[:,-1] = p_[:,-2]
+        p_ = self.reset_edge_pressure(p_)
 
         p = self.scale_up(p_, scale=scale)
+        self.rescale_boundaries()
         grad_p = self.compute_gradient(p, self.h, self.h, edge_order=1)
         #self.print_vector("b = ", c, full=True)
         #self.print_vector("A = ", M.todense(), full=True)
@@ -398,6 +444,7 @@ class CFDSimulator(BaseSimulator):
         # diffusion constant 
         s = 1
         k = 1
+        self.scale_boundaries()
         ux = self.scale_down_field(u[:,:,0])
         uy = self.scale_down_field(u[:,:,1])
         h = self.scale_down_field(h)
@@ -414,13 +461,17 @@ class CFDSimulator(BaseSimulator):
         self.print_vector("Substance advection: ", duh)
         res = h - s*dt*a + k*lh*dt
         self.print_vector("Resulting substance field: ", res)
-        return self.scale_up_field(res)
+        self.rescale_boundaries()
+        return self.scale_up_field(res) * self.non_boundaries
 
     def start(self):
         self.deltas = []
 
         self.h = 1.0
         self.n, self.m = (self.velocities.shape[0]*self.h, self.velocities.shape[1]*self.h)
+
+        self.non_boundaries = np.ones([int(self.n), int(self.m)]) - self.boundaries
+
         self.forces = np.zeros([int(self.n/self.h), int(self.m/self.h), 2]) # Will be removed and modeled differently
         # Set forces :)))
         for fi in range(int(self.n/self.h)):
@@ -483,7 +534,7 @@ class CFDSimulator(BaseSimulator):
         self.print_vector("w4 x", w4[:,:,0])
         self.print_vector("w4 y", w4[:,:,1])
         self.print_vector("div w4", self.compute_divergence(w4, self.h, self.h))
-        self.velocities = w4 
+        self.velocities = self.reset_solid_velocities(w4)
         self.pressure = p 
         self.plot_field(w4, "w4")
 

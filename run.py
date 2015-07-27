@@ -36,8 +36,8 @@ def v_func(x, y):
 def b_func(x,y):
     #if x == 2 or x == m-2 or y == 2 or y==n-2:
     #    return 1.0
-    #if (x - m/2)**2 + (y-n/2)**2 <= 8**2 or (x==int(0.1*m) or x==int(0.9*m) or y==int(0.1*n) or y==int(0.9*n)):
-    #    return True
+    if (x - m/2)**2 + (y-n/2)**2 <= 8**2:
+        return 1.0
     return 0.0
 
 p = np.zeros([n/h,m/h])
