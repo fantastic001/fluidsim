@@ -41,9 +41,9 @@ def b_func(x,y):
     return 0.0
 
 p = np.zeros([n/h,m/h])
-p.fill(50)
+p.fill(10)
 #for i in range(n):
-#    p[i, :] = np.linspace(20, 0, n) 
+#    p[i, :] = np.linspace(7000, 0, n) 
 
 N,M = (int(n/h), int(m/h))
 

@@ -11,7 +11,7 @@ class ImageAnimator(BaseAnimator):
 
     def update(self, p, v, b, t):
         n,m = p.shape
-        maxDensity = 100
+        maxDensity = 20
         mat = np.zeros([n,m,3])
         mat[:,:,0] = b
         mat[:,:,2] = 0.75

@@ -14,7 +14,7 @@ import os.path
 
 class CFDSimulator(BaseSimulator):
     
-    DEBUG = False
+    DEBUG = True
     DEBUG_BREAK = False
     DEBUG_PLOT = False
     DEBUG_INTERACTIVE_PLOTS = False
@@ -155,7 +155,7 @@ class CFDSimulator(BaseSimulator):
                     if (i,j) in [(0,0), (0, columns-1), (rows-1, 0), (rows-1, columns-1)]:
                         A[s,s] = 1 
                         b[s] = 0
-                        continue 
+                        continue
                     if self.boundary_up(i,j):
                         A[s,s+1] = 1
                         A[s,s-1] = 1
@@ -188,12 +188,12 @@ class CFDSimulator(BaseSimulator):
                 s = columns * i + j
                 if self.boundary(i,j):
                     A[s,s] = 1
-                    b_x[s] = 0
-                    b_y[s] = 0
-                    #if self.boundary_up(i,j) or self.boundary_down(i,j):
-                    #    b_y[s] = 0
-                    #if self.boundary_right(i,j) or self.boundary_left(i,j):
-                    #    b_x[s] = 0
+                    #b_x[s] = 0
+                    #b_y[s] = 0
+                    if self.boundary_up(i,j) or self.boundary_down(i,j):
+                        b_y[s] = 0
+                    if self.boundary_right(i,j) or self.boundary_left(i,j):
+                        b_x[s] = 0
         return (A,b_x, b_y)
     
     
@@ -213,8 +213,8 @@ class CFDSimulator(BaseSimulator):
         dudy[:,:,1] = duydy
         dudy = np.array([duxdy, duydy])
         s = u.copy()
-        s[:,:,0] = u_x * duxdx + u_y * duydx
-        s[:,:,1] = u_x * duxdy + u_y * duydy
+        s[:,:,0] = u_x * duxdx + u_y * duxdy
+        s[:,:,1] = u_x * duydx + u_y * duydy
         return s
 
     def add_force(self, v, dt, f):
@@ -263,6 +263,21 @@ class CFDSimulator(BaseSimulator):
         func = scipy.interpolate.RectBivariateSpline(x,y, p)
         return func(np.linspace(0, self.m, self.m), np.linspace(0, self.n, self.n))
     
+    def scale_down_field(self, b, scale=10):
+        row_step = int(self.n/scale)
+        column_step = int(self.m / scale)
+        step = int(self.size/scale**2)
+        b_normal = b.reshape(self.n, self.m)
+        c = b_normal[0:self.n:row_step, 0:self.m:column_step]
+        return c
+
+    def scale_up_field(self, p, scale=10):
+        p = p.reshape(scale, scale)
+        x = np.linspace(0, self.m, scale)
+        y = np.linspace(0, self.n, scale)
+        func = scipy.interpolate.RectBivariateSpline(x,y, p)
+        return func(np.linspace(0, self.m, self.m), np.linspace(0, self.n, self.n))
+    
     def diffusion(self, w2, dt):
         scale = 10
         w2_x = w2[:,:,0].reshape(self.size)
@@ -305,15 +320,14 @@ class CFDSimulator(BaseSimulator):
 
         # S = np.tril(A)
         T = S - A
-
+        self.print_vector("S: ", S.todense())
         # B = scipy.sparse.linalg.inv(S).dot(T)
         # el, ev = scipy.sparse.linalg.eigs(B)
         # self.print_vector("Eigenvalues of inv(S)T: ", el)
         # self.print_vector("Rate of convergence: ", el.max())
         # self.print_vector("W: ", w)
         p = np.zeros(A.shape[0])
-        for i in range(20):
-            self.print_vector("shapes, ", [p.shape, w.shape])
+        for i in range(10):
             p = scipy.sparse.linalg.spsolve(S, w + T.dot(p))
             # p = np.linalg.solve(S, w + T.dot(p))
             # self.print_vector("Pressure: ", p)
@@ -326,8 +340,8 @@ class CFDSimulator(BaseSimulator):
         self.print_vector("w3: ", w3)
         div_w3 = self.compute_divergence(w3, self.h, self.h, edge_order=1)
         div_w3_reshaped = div_w3.reshape(self.size)
-        self.print_vector("div w3: ", div_w3_reshaped)
         M, c = self.pressure_boundaries(div_w3_reshaped)
+        self.print_vector("Pressure laplacian before scaling: ", M.todense())
         #if (M.todense() == M.todense().transpose()).all():
         #    print("M is symmetric")
         #diag_M = M * scipy.sparse.identity(M.shape[0])
@@ -346,13 +360,14 @@ class CFDSimulator(BaseSimulator):
             p_[s] = p_[s] / diag_M[s,s]
         """
         #p = p_.reshape(int(self.n/self.h), int(self.m/self.h))
-        p = self.scale_up(p_, scale=scale)
         # Set boundaries back 
-        #p[0,:] = p[1,:]
-        #p[-1,:] = p[-2, :]
-        #p[:,0] = p[:,1]
-        #p[:,-1] = p[:,-2]
+        p_ = p_.reshape(10,10)
+        p_[0,:] = p_[1,:]
+        p_[-1,:] = p_[-2, :]
+        p_[:,0] = p_[:,1]
+        p_[:,-1] = p_[:,-2]
 
+        p = self.scale_up(p_, scale=scale)
         grad_p = self.compute_gradient(p, self.h, self.h, edge_order=1)
         #self.print_vector("b = ", c, full=True)
         #self.print_vector("A = ", M.todense(), full=True)
@@ -382,14 +397,20 @@ class CFDSimulator(BaseSimulator):
         """
         # diffusion constant 
         s = 1
-        k = 1
+        k = 10
+        ux = u[:,:,0]
+        uy = u[:,:,1]
         grad_h = self.compute_gradient(h, self.h, self.h)
-        a = u[:,:,0]*grad_h[:,:,0] + u[:,:,1]*grad_h[:,:,1]
-        uh = u.copy()
-        uh[:,:,0] = h*u[:,:,0]
-        uh[:,:,1] = h*u[:,:,1]
+        a = ux*grad_h[:,:,0] + uy*grad_h[:,:,1]
+        uxh = h*ux
+        uyh = h*uy
+        uh = np.zeros([h.shape[0], h.shape[1], 2])
+        uh[:,:,0] = uxh
+        uh[:,:,1] = uyh
         duh = self.compute_divergence(uh, self.h, self.h)
         lh = self.compute_divergence(self.compute_gradient(h, self.h, self.h), self.h, self.h)
+        self.print_vector("Substance laplacian: ", lh)
+        self.print_vector("Substance advection: ", duh)
         return h - s*dt*duh + k*lh*dt
 
     def start(self):
@@ -424,31 +445,41 @@ class CFDSimulator(BaseSimulator):
     
     def step(self, dt):
         w0 = self.velocities 
-        self.print_vector("w0", w0[:,:,0])
+        self.print_vector("w0 x", w0[:,:,0])
+        self.print_vector("w0 y", w0[:,:,1])
+        self.print_vector("div w0", self.compute_divergence(w0, self.h, self.h))
         self.bmap, self.iteration = self.plot_change(self.iteration, w0, self.bmap)
         self.plot_field(w0, "w0")
 
         w1 = self.add_force(w0, dt, self.forces)
-        self.print_vector("w1", w1[:,:,0])
+        self.print_vector("w1 x", w1[:,:,0])
+        self.print_vector("w1 y", w1[:,:,1])
+        self.print_vector("div w1", self.compute_divergence(w1, self.h, self.h))
         self.bmap, self.iteration = self.plot_change(self.iteration, w1, self.bmap)
         self.plot_field(w1, "w1")
 
-        self.path = self.update_path(self.path, w1, dt)
-        w2 = self.advection(w1, dt, self.path)
-        #w2 = w1.copy()
-        #w2 =  w1 - dt * self.advection_primitive(w1)
-        self.print_vector("w2", w2[:,:,0])
+        #self.path = self.update_path(self.path, w1, dt)
+        #w2 = self.advection(w1, dt, self.path)
+        w2 = w1.copy()
+        w2 =  w1 - dt * self.advection_primitive(w1)
+        self.print_vector("w2 x", w2[:,:,0])
+        self.print_vector("w2 y", w2[:,:,1])
+        self.print_vector("div w2", self.compute_divergence(w2, self.h, self.h))
         self.bmap, self.iteration = self.plot_change(self.iteration, w2, self.bmap)
         self.plot_field(w2, "w2")
 
         w3 = self.diffusion(w2, dt)
         # w3 = w2 + dt * self.viscosity * self.compute_laplacian(w2, self.h, self.h)
-        self.print_vector("w3", w3[:,:,0])
+        self.print_vector("w3 x", w3[:,:,0])
+        self.print_vector("w3 y", w3[:,:,1])
+        self.print_vector("div w3", self.compute_divergence(w3, self.h, self.h))
         self.bmap, self.iteration = self.plot_change(self.iteration, w3, self.bmap)
         self.plot_field(w3, "w3")
 
         w4, p = self.projection(w3, dt)
-        self.print_vector("w4", w4[:,:,0])
+        self.print_vector("w4 x", w4[:,:,0])
+        self.print_vector("w4 y", w4[:,:,1])
+        self.print_vector("div w4", self.compute_divergence(w4, self.h, self.h))
         self.velocities = w4 
         self.pressure = p 
         self.plot_field(w4, "w4")
