@@ -15,7 +15,7 @@ class ImageAnimator(BaseAnimator):
         mat = np.zeros([n,m,3])
         mat[:,:,0] = b
         mat[:,:,2] = 0.75
-        mat[:,:,1] = np.clip(p, -20, maxDensity) / maxDensity
+        mat[:,:,1] = np.clip(p, 0, maxDensity) / maxDensity
         
         # do not color boundaries
         mat[:,:,2] *= np.ones(b.shape) - b 
@@ -25,5 +25,5 @@ class ImageAnimator(BaseAnimator):
         self.imas.append([plot])
 
     def finish(self):
-        ani = animation.ArtistAnimation(self.fig, self.imas, interval=50, blit=True,repeat_delay=1000)
+        ani = animation.ArtistAnimation(self.fig, self.imas, interval=50, blit=True,repeat_delay=100)
         plt.show()

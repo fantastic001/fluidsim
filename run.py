@@ -43,7 +43,7 @@ def b_func(x,y):
 p = np.zeros([n/h,m/h])
 p.fill(10)
 #for i in range(n):
-#    p[i, :] = np.linspace(7000, 0, n) 
+#    p[i, :] = np.linspace(10, -10, n) 
 
 N,M = (int(n/h), int(m/h))
 

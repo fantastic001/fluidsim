@@ -397,9 +397,10 @@ class CFDSimulator(BaseSimulator):
         """
         # diffusion constant 
         s = 1
-        k = 10
+        k = 1
         ux = u[:,:,0]
         uy = u[:,:,1]
+        h = h
         grad_h = self.compute_gradient(h, self.h, self.h)
         a = ux*grad_h[:,:,0] + uy*grad_h[:,:,1]
         uxh = h*ux
@@ -411,7 +412,9 @@ class CFDSimulator(BaseSimulator):
         lh = self.compute_divergence(self.compute_gradient(h, self.h, self.h), self.h, self.h)
         self.print_vector("Substance laplacian: ", lh)
         self.print_vector("Substance advection: ", duh)
-        return h - s*dt*duh + k*lh*dt
+        res = h - s*dt*duh + k*lh*dt
+        self.print_vector("Resulting substance field: ", res)
+        return res
 
     def start(self):
         self.deltas = []
@@ -492,4 +495,5 @@ class CFDSimulator(BaseSimulator):
         self.print_vector("divergence error", np.abs(self.compute_divergence(self.velocities, self.h, self.h)).max())
 
         self.forces.fill(0)
+        self.print_vector("Substance sum: ", self.densities.sum())
         self.print_vector("Substance: ", self.densities)
