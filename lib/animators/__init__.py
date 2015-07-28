@@ -4,3 +4,6 @@ from .DebugAnimator import *
 from .SpeedAnimator import * 
 from .WaveAnimator import * 
 from .FieldAnimator import * 
+from .VelocityXAnimator import *
+from .VelocityYAnimator import *
+
