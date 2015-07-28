@@ -17,7 +17,8 @@ class CFDSimulator(BaseSimulator):
     DEBUG = True
     DEBUG_BREAK = False
     DEBUG_PLOT = False
-    DEBUG_INTERACTIVE_PLOTS = False
+    DEBUG_INTERACTIVE_PLOTS_FIELD = False
+    DEBUG_INTERACTIVE_PLOTS_SPEED = True
     
     def get_boundaries_hash(self):
         if (self.boundaries == 0).all():
@@ -43,12 +44,17 @@ class CFDSimulator(BaseSimulator):
         return (bmap, iteration)
 
     def plot_field(self, v, title=""):
-        if self.DEBUG_INTERACTIVE_PLOTS:
+        if self.DEBUG_INTERACTIVE_PLOTS_FIELD:
             plt.quiver(v[::10,::10, 0], v[::10,::10,1], units="width")
             plt.title(title)
             plt.show()
             plt.clf()
-    
+        if self.DEBUG_INTERACTIVE_PLOTS_SPEED:
+            plt.title(title)
+            speed = np.sqrt(v[:,:,0]**2 + v[:,:,1]**2)
+            plt.imshow(speed)
+            plt.show()
+
     def print_vector(self, s, v, full=False):
         if self.DEBUG:
             print(s)
