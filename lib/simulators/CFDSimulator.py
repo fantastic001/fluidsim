@@ -304,8 +304,8 @@ class CFDSimulator(BaseSimulator):
                 psi = path[i,j,1]
                 psj = path[i,j,0]
                 if psi < 0 or psi >= self.n or psj < 0 or psj >= self.m:
-                    #w2[i,j,0] = 0
-                    #w2[i,j,1] = 0
+                    #w2[psi,psj,0] = 0
+                    #w2[psi,psj,1] = 0
                     pass
                 else:
                     w2[psi,psj,0] = w1[i, j, 0]
@@ -370,7 +370,19 @@ class CFDSimulator(BaseSimulator):
     
     def scale_boundaries(self, scale=10):
         self.tmp_boundaries = self.boundaries.copy()
-        self.boundaries = self.scale_down_field(self.boundaries, scale=scale)
+        #self.boundaries = self.scale_down_field(self.boundaries, scale=scale)
+        b = np.zeros([scale, scale], dtype=np.bool)
+        stepr = int(self.n / scale) + 1
+        stepc = int(self.m / scale) + 1
+        for i in range(1, scale):
+            for j in range(1, scale):
+                has_solids = self.boundaries[(i-1)*stepr:i*stepr, (j-1)*stepc:j*stepc].any()
+                if has_solids:
+                    b[i,j] = True
+                    b[i-1,j] = True
+                    b[i,j-1] = True
+                    b[i-1,j-1] = True
+        self.boundaries = b 
 
     def rescale_boundaries(self):
         self.boundaries = self.tmp_boundaries.copy()
@@ -568,10 +580,10 @@ class CFDSimulator(BaseSimulator):
         self.print_vector("w1 x error:", np.abs(w1[:,:,0]).max())
         self.print_vector("w1 y error:", np.abs(w1[:,:,1]).max())
 
-        #self.path = self.update_path(self.path, w1, dt)
-        #w2 = self.advection(w1, dt, self.path)
-        w2 = w1.copy()
-        w2 =  w1 - dt * self.advection_primitive(w1)
+        self.path = self.update_path(self.path, w1, dt)
+        w2 = self.advection(w1, dt, self.path)
+        #w2 = w1.copy()
+        #w2 =  w1 - dt * self.advection_primitive(w1)
         self.print_vector("w2 x", w2[:,:,0])
         self.print_vector("w2 y", w2[:,:,1])
         self.print_vector("div w2", self.compute_divergence(w2, self.h, self.h))
