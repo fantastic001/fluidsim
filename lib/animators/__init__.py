@@ -6,4 +6,5 @@ from .WaveAnimator import *
 from .FieldAnimator import * 
 from .VelocityXAnimator import *
 from .VelocityYAnimator import *
+from .DivergenceAnimator import * 
 

@@ -35,6 +35,7 @@ animator_router.register(WaveAnimator, "waves")
 animator_router.register(FieldAnimator, "field") 
 animator_router.register(VelocityXAnimator, "velocity_x")
 animator_router.register(VelocityYAnimator, "velocity_y")
+animator_router.register(DivergenceAnimator, "divergence")
 
 simulator_router = Router()
 simulator_router.register(LBMSimulator, "lbm")
