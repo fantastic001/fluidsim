@@ -4,11 +4,13 @@ from lib.animators import *
 from lib.simulators import *
 from lib.draw import * 
 
+from lib.solid_generators import * 
+
 import sys
 import numpy as np 
 
 if sys.argv[1] == "--help":
-    print("this width height velocity_x velocity_y num_iterations viscosity animator simulator")
+    print("this width height velocity_x velocity_y num_iterations viscosity animator simulator domain")
     exit(0)
 
 h = 1.0
@@ -31,8 +33,14 @@ simulator_router.register(LBMSimulator, "lbm")
 simulator_router.register(CFDImplicitSimulator, "implicit")
 simulator_router.register(CFDExplicitSimulator, "explicit")
 
+domain_router = Router()
+domain_router.register(blank, "blank")
+domain_router.register(circle_center, "circle")
+domain_router.register(square_center, "square")
+
 animator_class = animator_router.route(sys.argv[7])
 simulator_class = simulator_router.route(sys.argv[8])
+domain_func = domain_router.route(sys.argv[9])
 
 def v_func(x, y):
     #if (x-m/2)**2 + (y-n/2)**2 <= 25**2:
@@ -41,24 +49,16 @@ def v_func(x, y):
     #else: 
         return np.array([0,0])
 
-def b_func(x,y):
-    #if x == 2 or x == m-2 or y == 2 or y==n-2:
-    #    return 1.0
-    if (x - m/2)**2 + (y-n/2)**2 <= 8**2:
-        return 1.0
-    return 0.0
 
 p = np.zeros([n/h,m/h])
-#p.fill(10)
-for i in range(n):
-    p[i, :] = np.linspace(10, -10, n) 
+p.fill(10)
 
 N,M = (int(n/h), int(m/h))
 
 v = np.zeros([N,M, 2])
 draw_from_function(v, N, M, v_func)
 b = np.zeros([N,M])
-draw_from_function(b,N,M, b_func)
+draw_from_function(b,N,M, domain_func)
 
 simulator = simulator_class(p,v,b, viscosity)
 animator = animator_class(simulator) 
