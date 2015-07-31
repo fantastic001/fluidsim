@@ -43,11 +43,7 @@ simulator_class = simulator_router.route(sys.argv[8])
 domain_func = domain_router.route(sys.argv[9])
 
 def v_func(x, y):
-    #if (x-m/2)**2 + (y-n/2)**2 <= 25**2:
-    #if x > 2 and x < m-2 and y>2 and y<n-2:
-    #    return np.array([velocity_x, velocity_y])
-    #else: 
-        return np.array([0,0])
+    return np.array([velocity_x, velocity_y])
 
 
 p = np.zeros([n/h,m/h])
