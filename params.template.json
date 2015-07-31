@@ -1,0 +1,16 @@
+{
+	"height": "100",
+	"width": "100",
+	"iterations": "100",
+	"velocity_x": 0,
+	"velocity_y": 0,
+	"viscosity": 0.000001,
+	"simulator": "lbm", 
+	"domain": "blank",
+	"animator": "speed",
+	"animator_params": 
+	{
+		"maximum": 20,
+		"target_path": "frames"
+	}
+}
