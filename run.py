@@ -53,7 +53,7 @@ animator_class = animator_router.route(params.get("animator", "speed"))
 simulator_class = simulator_router.route(params.get("simulator", "implicit"))
 domain_func = domain_router.route(params.get("domain", "blank"))
 
-def v_func(x, y):
+def v_func(x, y, height, width):
     return np.array([velocity_x, velocity_y])
 
 

@@ -40,5 +40,5 @@ class DivergenceAnimator(BaseAnimator):
         print("Iteration %d" % t)
         n,m = p.shape
         div = self.compute_divergence(v, 1.0, 1.0)
-        self.f.write("%d,%d\n" % (t, div))
+        self.f.write("%d,%d\n" % (t, div.max()))
 

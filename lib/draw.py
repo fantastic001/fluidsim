@@ -7,7 +7,7 @@ def draw_from_function(grid, n, m, func):
     """
     for i in range(n):
         for j in range(m):
-            grid[i][j] = func(j,i)
+            grid[i][j] = func(j,i,n,m)
 
 
 
