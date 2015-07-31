@@ -41,5 +41,5 @@ class CFDExplicitSimulator(CFDSimulator):
         return w2
 
     def perform_diffusion(self, w2, dt):
-        w3 = self.diffusion(w2, dt)
+        w3 = w2 + dt * self.viscosity * self.compute_laplacian(w2, self.h, self.h)
         return w3
