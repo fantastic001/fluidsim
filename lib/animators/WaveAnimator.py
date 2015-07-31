@@ -4,7 +4,7 @@ from .BaseAnimator import *
 import matplotlib.pyplot as plt 
 import numpy as np 
 class WaveAnimator(BaseAnimator):
-    def start(self, simulator):
+    def start(self, simulator, **kwargs):
         plt.ylim(0, 10)
         plt.xlabel("Iteration (discrete time)")
         plt.ylabel("Difference between max and min density in the grid")

@@ -1,11 +1,11 @@
 
 class BaseAnimator(object):
     
-    def __init__(self, simulator):
+    def __init__(self, simulator, **kwargs):
         self.simulator = simulator 
-        self.start(self.simulator)
+        self.start(self.simulator, **kwargs)
     
-    def start(self, simulator):
+    def start(self, simulator, **kwargs):
         pass
 
     def update(self, p, v, b, iteration):

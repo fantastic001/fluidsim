@@ -2,7 +2,7 @@ from .BaseAnimator import BaseAnimator
 
 class DebugAnimator(BaseAnimator):
     
-    def start(self, simulator):
+    def start(self, simulator, **kwargs):
         pass
 
     def update(self, p, v, b, iteration):

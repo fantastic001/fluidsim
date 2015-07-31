@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import numpy as np 
 class FieldAnimator(BaseAnimator):
-    def start(self, simulator):
+    def start(self, simulator, **kwargs):
         pass
 
     def update(self, p, v, b, t):

@@ -4,7 +4,7 @@ from .BaseAnimator import *
 import matplotlib.pyplot as plt 
 import numpy as np 
 class VelocityYAnimator(BaseAnimator):
-    def start(self, simulator):
+    def start(self, simulator, **kwargs):
         pass
 
     def update(self, p, v, b, t):
