@@ -8,14 +8,14 @@ class ImageAnimator(BaseAnimator):
     def start(self, simulator, **kwargs):
         self.fig = plt.figure()
         self.imas = []
+        self.maxDensity = int(kwargs.get("max_density", 20))
 
     def update(self, p, v, b, t):
         n,m = p.shape
-        maxDensity = 20
         mat = np.zeros([n,m,3])
         mat[:,:,0] = b
         mat[:,:,2] = 0.75
-        mat[:,:,1] = np.clip(p, 0, maxDensity) / maxDensity
+        mat[:,:,1] = np.clip(p, 0, self.maxDensity) / self.maxDensity
         
         # do not color boundaries
         mat[:,:,2] *= np.ones(b.shape) - b 

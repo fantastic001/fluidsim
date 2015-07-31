@@ -11,7 +11,6 @@ class FieldAnimator(BaseAnimator):
     def update(self, p, v, b, t):
         print("Iteration: %d" % t) 
         n,m = p.shape
-        maxDensity = 10.
         mat = np.zeros([n,m,3])
         plt.quiver(v[::10,::10, 0], v[::10,::10,1], units="width")
         plt.savefig("frames/field-%d.png" % t)
