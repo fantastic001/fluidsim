@@ -3,11 +3,18 @@ from .BaseAnimator import *
 
 import matplotlib.pyplot as plt 
 import numpy as np 
+
+import os
+import os.path 
+
 class VelocityXAnimator(BaseAnimator):
     def start(self, simulator, **kwargs):
         self.maximum = int(kwargs.get("maximum", 20))
         self.target_path = kwargs.get("target_path", "frames/")
 
+        if not os.path.isdir(self.target_path):
+            os.mkdir(self.target_path)
+    
     def update(self, p, v, b, t):
         print("Iteration %d" % t)
         n,m = p.shape

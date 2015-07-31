@@ -4,16 +4,23 @@ from .BaseAnimator import *
 import matplotlib.pyplot as plt 
 import matplotlib.animation as animation
 import numpy as np 
+
+import os 
+import os.path 
+
 class FieldAnimator(BaseAnimator):
     def start(self, simulator, **kwargs):
-        pass
+        self.target_path = kwargs.get("target_path", "frames/")
+
+        if not os.path.isdir(self.target_path):
+            os.mkdir(self.target_path)
 
     def update(self, p, v, b, t):
         print("Iteration: %d" % t) 
         n,m = p.shape
         mat = np.zeros([n,m,3])
         plt.quiver(v[::10,::10, 0], v[::10,::10,1], units="width")
-        plt.savefig("frames/field-%d.png" % t)
+        plt.savefig(self.target_path + "/field-%d.png" % t)
         plt.clf()
 
     def finish(self):

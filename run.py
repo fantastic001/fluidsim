@@ -9,15 +9,23 @@ from lib.solid_generators import *
 import sys
 import numpy as np 
 
+import json 
+
 if sys.argv[1] == "--help":
-    print("this width height velocity_x velocity_y num_iterations viscosity animator simulator domain")
+    print("Usage: %s params_path" % sys.argv[0])
     exit(0)
 
+parameter_file = sys.argv[1]
+f = open(parameter_file)
+params = json.loads(f.read())
+f.close()
+
+
 h = 1.0
-m,n = int(sys.argv[1]), int(sys.argv[2])
-velocity_x, velocity_y = float(sys.argv[3]), float(sys.argv[4])
-num_iters = int(sys.argv[5])
-viscosity = float(sys.argv[6])
+m,n = int(params.get("height", 100)), int(params.get("width", 100))
+velocity_x, velocity_y = float(params.get("velocity_x", 0)), float(params.get("velocity_y", 0))
+num_iters = int(params.get("iterations", 100))
+viscosity = float(params.get("viscosity", 0.000001))
 
 animator_router = Router()
 animator_router.register(ImageAnimator, "density")
@@ -38,9 +46,11 @@ domain_router.register(blank, "blank")
 domain_router.register(circle_center, "circle")
 domain_router.register(square_center, "square")
 
-animator_class = animator_router.route(sys.argv[7])
-simulator_class = simulator_router.route(sys.argv[8])
-domain_func = domain_router.route(sys.argv[9])
+animator_params = params.get("animator_params", {})
+
+animator_class = animator_router.route(params.get("animator", "speed"))
+simulator_class = simulator_router.route(params.get("simulator", "implicit"))
+domain_func = domain_router.route(params.get("domain", "blank"))
 
 def v_func(x, y):
     return np.array([velocity_x, velocity_y])
@@ -57,5 +67,5 @@ b = np.zeros([N,M])
 draw_from_function(b,N,M, domain_func)
 
 simulator = simulator_class(p,v,b, viscosity)
-animator = animator_class(simulator) 
+animator = animator_class(simulator, **animator_params) 
 animator.run(num_iters, step=0.1)
