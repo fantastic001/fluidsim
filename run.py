@@ -8,7 +8,7 @@ import sys
 import numpy as np 
 
 if sys.argv[1] == "--help":
-    print("this width height velocity_x velocity_y num_iterations viscosity animator")
+    print("this width height velocity_x velocity_y num_iterations viscosity animator simulator")
     exit(0)
 
 h = 1.0
@@ -26,7 +26,13 @@ animator_router.register(FieldAnimator, "field")
 animator_router.register(VelocityXAnimator, "velocity_x")
 animator_router.register(VelocityYAnimator, "velocity_y")
 
+simulator_router = Router()
+simulator_router.register(LBMSimulator, "lbm")
+simulator_router.register(CFDImplicitSimulator, "implicit")
+simulator_router.register(CFDExplicitSimulator, "explicit")
+
 animator_class = animator_router.route(sys.argv[7])
+simulator_class = simulator_router.route(sys.argv[8])
 
 def v_func(x, y):
     #if (x-m/2)**2 + (y-n/2)**2 <= 25**2:
@@ -54,6 +60,6 @@ draw_from_function(v, N, M, v_func)
 b = np.zeros([N,M])
 draw_from_function(b,N,M, b_func)
 
-simulator = CFDImplicitSimulator(p,v,b, viscosity)
+simulator = simulator_class(p,v,b, viscosity)
 animator = animator_class(simulator) 
 animator.run(num_iters, step=0.1)
