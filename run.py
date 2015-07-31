@@ -54,6 +54,6 @@ draw_from_function(v, N, M, v_func)
 b = np.zeros([N,M])
 draw_from_function(b,N,M, b_func)
 
-simulator = CFDSimulator(p,v,b, viscosity)
+simulator = CFDImplicitSimulator(p,v,b, viscosity)
 animator = animator_class(simulator) 
 animator.run(num_iters, step=0.1)

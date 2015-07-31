@@ -285,46 +285,8 @@ class CFDSimulator(BaseSimulator):
                     gp[i,j,1] = 0
         return gp 
 
-    def advection_primitive(self, u):
-        u_x = u[:,:,0]
-        u_y = u[:,:,1]
-        duxdx = self.compute_gradient(u[:,:,0], self.h, self.h)[:,:,0]
-        duydx = self.compute_gradient(u[:,:,1], self.h, self.h)[:,:,0]
-        duxdy = self.compute_gradient(u[:,:,0], self.h, self.h)[:,:,1]
-        duydy = self.compute_gradient(u[:,:,1], self.h, self.h)[:,:,1]
-        
-        dudx = u.copy()
-        dudy = u.copy()
-        dudx[:,:,0] = duxdx
-        dudx[:,:,1] = duydx
-        dudy[:,:,0] = duxdy
-        dudy[:,:,1] = duydy
-        dudy = np.array([duxdy, duydy])
-        s = u.copy()
-        s[:,:,0] = u_x * duxdx + u_y * duxdy
-        s[:,:,1] = u_x * duydx + u_y * duydy
-        return s
-
     def add_force(self, v, dt, f):
         return v + dt*f
-
-    def advection(self, w1, dt, path):
-        w2 = w1.copy()
-        psi = np.clip(path[:,:,1], 0, self.n).astype(int)
-        psj = np.clip(path[:,:,0], 0, self.m).astype(int)
-        w2[psi,psj,0] = w1[:, :, 0]
-        w2[psi,psj,1] = w1[:, :, 1]
-        return w2
-        
-    def update_path(self, path, w1, dt):
-        # set new paths 
-        newpath = path.copy()
-        for i in range(int(self.n)):
-            for j in range(int(self.m)):
-                if not (path[i,j,0] < 0 or path[i,j,0] >= self.m or path[i,j,1] < 0 or path[i,j,1] >= self.n):
-                    newpath[i,j,0] += dt*w1[path[i,j,1], path[i,j,0], 0]
-                    newpath[i,j,1] += dt*w1[path[i,j,1], path[i,j,0], 1]
-        return newpath
 
     def scale_down(self, A, b, scale=10):
         cond = None
@@ -391,44 +353,6 @@ class CFDSimulator(BaseSimulator):
     def rescale_boundaries(self):
         self.boundaries = self.tmp_boundaries.copy()
 
-    def diffusion(self, w2, dt):
-        scale = 10
-        w2_x = w2[:,:,0].reshape(self.size)
-        w2_y = w2[:,:,1].reshape(self.size)
-        M, c_x, c_y = self.velocity_boundaries(w2_x, w2_y)
-        L = self.I - (self.viscosity * dt)*M
-        self.scale_boundaries(scale=scale)
-        L1, c_x = self.scale_down(L, c_x)
-        L2, c_y = self.scale_down(L, c_y)
-
-        self.print_vector("L1", L1.todense())
-        self.print_vector("L2", L2.todense())
-        self.print_vector("c_x", c_x)
-        self.print_vector("c_y", c_y)
-        w30 = scipy.sparse.linalg.spsolve(L1, c_x)
-        w31 = scipy.sparse.linalg.spsolve(L2, c_y)
-        
-        w30 = self.scale_up(w30)
-        w31 = self.scale_up(w31)
-        self.rescale_boundaries()
-
-        w3 = np.zeros([int(self.n/self.h), int(self.m/self.h), 2])
-        w3[:,:,0] = w30.reshape([int(self.n/self.h), int(self.m/self.h)])
-        w3[:,:,1] = w31.reshape([int(self.n/self.h), int(self.m/self.h)])
-        
-        # at boundaries, velocity is zero 
-        #w3[0,:, 0] = 0
-        #w3[-1,:, 0] = 0
-        #w3[:, 0, 0] = 0
-        #w3[:,-1, 0] = 0
-
-        #w3[0,:, 1] = 0
-        #w3[-1,:, 1] = 0
-        #w3[:,0, 1] = 0
-        #w3[:,-1, 1] = 0
-        
-        return self.reset_solid_velocities(w3)
-
     def poisson(self, A, w):
         #S = A * scipy.sparse.identity(A.shape[0])
         S = scipy.sparse.tril(A)
@@ -493,20 +417,6 @@ class CFDSimulator(BaseSimulator):
         return (w4, p)
 
     def advect_substance(self, u, h, path, dt):
-        """
-        h1 = h.copy()
-        for j in range(int(self.m)):
-            for i in range(int(self.n)):
-                psi = path[i,j,1]
-                psj = path[i,j,0]
-                if psi < 0 or psi >= self.n or psj < 0 or psj >= self.m:
-                    #w2[i,j,0] = 0
-                    #w2[i,j,1] = 0
-                    pass
-                else:
-                    h1[psi,psj] = h[i, j]
-        return h1
-        """
         # diffusion constant 
         s = 1
         k = 1
@@ -566,6 +476,16 @@ class CFDSimulator(BaseSimulator):
         #plt.show()
         pass
     
+    def perform_advection(self, w1, dt):
+        pass
+
+    def perform_diffusion(self, w2, dt):
+        pass
+
+    def perform_projection(self, w3, dt):
+        w4, p = self.projection(w3, dt)
+        return (w4, p)
+
     def step(self, dt):
         w0 = self.velocities 
         self.print_vector("w0 x", w0[:,:,0])
@@ -584,11 +504,8 @@ class CFDSimulator(BaseSimulator):
         self.plot_field(w1, "%d-w1" % self.iteration)
         self.print_vector("w1 x error:", np.abs(w1[:,:,0]).max())
         self.print_vector("w1 y error:", np.abs(w1[:,:,1]).max())
-
-        self.path = self.update_path(self.path, w1, dt)
-        w2 = self.advection(w1, dt, self.path)
-        #w2 = w1.copy()
-        #w2 =  w1 - dt * self.advection_primitive(w1)
+        
+        w2 = self.perform_advection(w1, dt)
         self.print_vector("w2 x", w2[:,:,0])
         self.print_vector("w2 y", w2[:,:,1])
         self.print_vector("div w2", self.compute_divergence(w2, self.h, self.h))
@@ -596,9 +513,8 @@ class CFDSimulator(BaseSimulator):
         self.plot_field(w2, "%d-w2" % self.iteration)
         self.print_vector("w2 x error:", np.abs(w2[:,:,0]).max())
         self.print_vector("w2 y error:", np.abs(w2[:,:,1]).max())
-
-        w3 = self.diffusion(w2, dt)
-        # w3 = w2 + dt * self.viscosity * self.compute_laplacian(w2, self.h, self.h)
+        
+        w3 = self.perform_diffusion(w2, dt)
         self.print_vector("w3 x", w3[:,:,0])
         self.print_vector("w3 y", w3[:,:,1])
         self.print_vector("div w3", self.compute_divergence(w3, self.h, self.h))
@@ -607,7 +523,7 @@ class CFDSimulator(BaseSimulator):
         self.print_vector("w3 x error:", np.abs(w3[:,:,0]).max())
         self.print_vector("w3 y error:", np.abs(w3[:,:,1]).max())
 
-        w4, p = self.projection(w3, dt)
+        w4, p = self.perform_projection(w3, dt)
         self.print_vector("w4 x", w4[:,:,0])
         self.print_vector("w4 y", w4[:,:,1])
         self.print_vector("div w4", self.compute_divergence(w4, self.h, self.h))
