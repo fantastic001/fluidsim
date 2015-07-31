@@ -1,0 +1,17 @@
+import numpy as np
+
+def linear_velocity(x,y,n,m):
+    return np.array([10 - 0.1*x, 0])
+
+def half_linear_velocity(x,y,n,m):
+    if x <= 0.40*m:
+        return np.array([10 - 0.25*x, 0])
+    return np.array([0,0])
+
+def linear_velocity_small(x,y,n,m):
+    return np.array([0.1 - 0.001*x, 0])
+
+def half_linear_velocity_small(x,y,n,m):
+    if x <= 0.40*m:
+        return np.array([0.1 - 0.001*2.5*x, 0])
+    return np.array([0,0])

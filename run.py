@@ -5,6 +5,7 @@ from lib.simulators import *
 from lib.draw import * 
 
 from lib.solid_generators import * 
+from lib.velocity_generators import * 
 
 import sys
 import numpy as np 
@@ -23,7 +24,6 @@ f.close()
 
 h = 1.0
 m,n = int(params.get("height", 100)), int(params.get("width", 100))
-velocity_x, velocity_y = float(params.get("velocity_x", 0)), float(params.get("velocity_y", 0))
 num_iters = int(params.get("iterations", 100))
 viscosity = float(params.get("viscosity", 0.000001))
 
@@ -47,14 +47,18 @@ domain_router.register(blank, "blank")
 domain_router.register(circle_center, "circle")
 domain_router.register(square_center, "square")
 
+velocity_router = Router()
+velocity_router.register(linear_velocity, "linear")
+velocity_router.register(half_linear_velocity, "half_linear")
+velocity_router.register(linear_velocity_small, "linear_small")
+velocity_router.register(half_linear_velocity_small, "half_linear_small")
+
 animator_params = params.get("animator_params", {})
 
 animator_class = animator_router.route(params.get("animator", "speed"))
 simulator_class = simulator_router.route(params.get("simulator", "implicit"))
 domain_func = domain_router.route(params.get("domain", "blank"))
-
-def v_func(x, y, height, width):
-    return np.array([velocity_x, velocity_y])
+v_func = velocity_router.route(params.get("velocity", "linear"))
 
 
 p = np.zeros([n/h,m/h])

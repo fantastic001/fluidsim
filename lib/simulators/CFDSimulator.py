@@ -452,8 +452,8 @@ class CFDSimulator(BaseSimulator):
 
         self.forces = np.zeros([int(self.n/self.h), int(self.m/self.h), 2]) # Will be removed and modeled differently
         # Set forces :)))
-        for fi in range(int(self.n/self.h)):
-            self.forces[fi, :, 0] = np.linspace(100, 0, self.m/self.h)
+        #for fi in range(int(self.n/self.h)):
+        #    self.forces[fi, :, 0] = np.linspace(100, 0, self.m/self.h)
         
         self.y,self.x = np.mgrid[0:self.n:self.h, 0:self.m:self.h]
         self.ax = np.arange(0, self.m, self.h)
