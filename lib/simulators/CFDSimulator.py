@@ -14,7 +14,7 @@ import os.path
 
 class CFDSimulator(BaseSimulator):
     
-    DEBUG = True
+    DEBUG = False
     DEBUG_BREAK = False
     DEBUG_PLOT = False
     DEBUG_INTERACTIVE_PLOTS_FIELD = False
@@ -211,10 +211,18 @@ class CFDSimulator(BaseSimulator):
         b = c*self.bp
         return (self.Ap,b)
     
-    def velocity_boundaries(self, M, c_x, c_y):
+    def get_velocity_laplacian_operator(self, M):
+        A_cache_filename = "cache/Av-%d-%d-%f%s.npz" % (self.n, self.m, self.h, self.get_boundaries_hash())
+        bx_cache_filename = "cache/bv_x-%d-%d-%f%s.npz" % (self.n, self.m, self.h, self.get_boundaries_hash())
+        by_cache_filename = "cache/bv_y-%d-%d-%f%s.npz" % (self.n, self.m, self.h, self.get_boundaries_hash())
+        if os.path.isfile(A_cache_filename) and os.path.isfile(bx_cache_filename) and os.path.isfile(by_cache_filename):
+            A = self.load_sparse_csr(A_cache_filename)
+            bx = self.load_sparse_csr(bx_cache_filename)
+            by = self.load_sparse_csr(by_cache_filename)
+            return (A,bx,by)
         A = M.copy()
-        b_x = c_x.copy()
-        b_y = c_y.copy()
+        b_x = np.ones(self.size)
+        b_y = np.ones(self.size)
         columns = int(self.m/self.h)
         rows = int(self.n/self.h)
         for i in range(rows):
@@ -233,6 +241,9 @@ class CFDSimulator(BaseSimulator):
                     if self.boundary_right(i,j) or self.boundary_left(i,j):
                         b_x[s] = 0
         return (A,b_x, b_y)
+
+    def velocity_boundaries(self, c_x, c_y):
+        return (self.Av, c_x*self.bv_x, c_y*self.bv_y)
     
     def reset_solid_velocities(self, v):
         w = v.copy()
@@ -299,17 +310,10 @@ class CFDSimulator(BaseSimulator):
 
     def advection(self, w1, dt, path):
         w2 = w1.copy()
-        for j in range(int(self.m)):
-            for i in range(int(self.n)):
-                psi = path[i,j,1]
-                psj = path[i,j,0]
-                if psi < 0 or psi >= self.n or psj < 0 or psj >= self.m:
-                    #w2[psi,psj,0] = 0
-                    #w2[psi,psj,1] = 0
-                    pass
-                else:
-                    w2[psi,psj,0] = w1[i, j, 0]
-                    w2[psi,psj,1] = w1[i, j, 1]
+        psi = np.clip(path[:,:,1], 0, self.n).astype(int)
+        psj = np.clip(path[:,:,0], 0, self.m).astype(int)
+        w2[psi,psj,0] = w1[:, :, 0]
+        w2[psi,psj,1] = w1[:, :, 1]
         return w2
         
     def update_path(self, path, w1, dt):
@@ -341,7 +345,7 @@ class CFDSimulator(BaseSimulator):
         c = b_normal[condition]
 
         #A4D = A.reshape([self.n, self.m, self.n, self.m])
-        B = A.tocsr()[cond]
+        B = A[cond]
         B = scipy.sparse.csr_matrix(B.reshape([scale**2, scale**2]))
         #B = A[0:self.n:row_step, 0:self.m:column_step, 0:self.n:row_step, 0:self.m:column_step].reshape([100, 100])
         return (B, c)
@@ -391,7 +395,7 @@ class CFDSimulator(BaseSimulator):
         scale = 10
         w2_x = w2[:,:,0].reshape(self.size)
         w2_y = w2[:,:,1].reshape(self.size)
-        M, c_x, c_y = self.velocity_boundaries(self.A, w2_x, w2_y)
+        M, c_x, c_y = self.velocity_boundaries(w2_x, w2_y)
         L = self.I - (self.viscosity * dt)*M
         self.scale_boundaries(scale=scale)
         L1, c_x = self.scale_down(L, c_x)
@@ -440,7 +444,7 @@ class CFDSimulator(BaseSimulator):
         # self.print_vector("W: ", w)
         N = A.shape[0]
         p = np.zeros(N)
-        for i in range(10):
+        for i in range(40):
             p = scipy.sparse.linalg.spsolve(S, w + T.dot(p))
             self.print_vector("Pressure: ", p)
             # test = w.reshape([self.n, self.m]) - self.compute_divergence(self.compute_gradient(p.reshape([self.n, self.m]), self.h, self.h), self.h, self.h)
@@ -555,6 +559,7 @@ class CFDSimulator(BaseSimulator):
         self.bmap = np.zeros([int(self.n/self.h), int(self.m/self.h)])
         self.iteration = 0
         self.Ap, self.bp = self.get_pressure_laplacian_operator(self.A)
+        self.Av, self.bv_x, self.bv_y = self.get_velocity_laplacian_operator(self.A)
     
     def finish(self):
         #plt.plot(np.diff(self.deltas))
