@@ -18,8 +18,8 @@ class CFDImplicitSimulator(CFDSimulator):
 
     def advection(self, w1, dt, path):
         w2 = w1.copy()
-        psi = np.clip(path[:,:,1], 0, self.n).astype(int)
-        psj = np.clip(path[:,:,0], 0, self.m).astype(int)
+        psi = np.clip(path[:,:,1], 0, self.n-1).astype(int)
+        psj = np.clip(path[:,:,0], 0, self.m-1).astype(int)
         w2[psi,psj,0] = w1[:, :, 0]
         w2[psi,psj,1] = w1[:, :, 1]
         return w2
