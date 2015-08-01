@@ -15,6 +15,8 @@ class SpeedAnimator(BaseAnimator):
 
         if not os.path.isdir(self.target_path):
             os.mkdir(self.target_path)
+
+        self.f = open(self.target_path + "/average-speed.csv", "w")
     
     def update(self, p, v, b, t):
         print("Iteration %d" % t)
@@ -26,3 +28,4 @@ class SpeedAnimator(BaseAnimator):
         mat[:,:,1] = np.ones([n,m])*nb
         mat[:,:,1] = np.ones([n,m]) - np.clip(speed, 0, self.maximum) / self.maximum
         plt.imsave(self.target_path + "/figure-" + str(t) + ".png", mat)
+        self.f.write("%d,%f\n" % (t, speed.mean()))
