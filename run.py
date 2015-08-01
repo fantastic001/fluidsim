@@ -52,7 +52,10 @@ velocity_router.register(linear_velocity, "linear")
 velocity_router.register(half_linear_velocity, "half_linear")
 velocity_router.register(linear_velocity_small, "linear_small")
 velocity_router.register(half_linear_velocity_small, "half_linear_small")
-
+velocity_router.register(constant_velocity, "constant")
+velocity_router.register(constant_velocity_small, "constant_small")
+velocity_router.register(half_constant_velocity_small, "half_constant_small")
+velocity_router.register(half_constant_velocity, "half_constant")
 animator_params = params.get("animator_params", {})
 
 animator_class = animator_router.route(params.get("animator", "speed"))
