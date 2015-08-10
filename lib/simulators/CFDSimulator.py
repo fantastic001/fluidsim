@@ -8,17 +8,9 @@ import scipy.interpolate as interpolate
 import scipy.sparse
 import scipy.sparse.linalg
 
-import matplotlib.pyplot as plt 
-
 import os.path
 
 class CFDSimulator(BaseSimulator):
-    
-    DEBUG = False
-    DEBUG_BREAK = False
-    DEBUG_PLOT = False
-    DEBUG_INTERACTIVE_PLOTS_FIELD = False
-    DEBUG_INTERACTIVE_PLOTS_SPEED = False
     
     def get_boundaries_hash(self):
         if (self.boundaries == 0).all():
@@ -32,38 +24,6 @@ class CFDSimulator(BaseSimulator):
     def load_sparse_csr(self, filename):
         loader = np.load(filename)
         return scipy.sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape=loader["shape"])
-
-    def get_condition_number(self, M):
-        return scipy.sparse.linalg.onenormest(M) * scipy.sparse.linalg.onenormest(scipy.sparse.linalg.inv(M))
-
-    def plot_change(self, iteration, v, bmap):
-        if self.DEBUG_PLOT:
-            plt.imsave("debug-%d.png" % iteration, self.compute_speed(v) - bmap, vmax=2, vmin=-2)
-            iteration += 1
-            bmap = self.compute_speed(v)
-        return (bmap, iteration)
-
-    def plot_field(self, v, title=""):
-        if self.DEBUG_INTERACTIVE_PLOTS_FIELD:
-            plt.quiver(v[::10,::10, 0], v[::10,::10,1], units="width")
-            plt.title(title)
-            plt.show()
-            plt.clf()
-        if self.DEBUG_INTERACTIVE_PLOTS_SPEED:
-            plt.title(title)
-            speed = np.sqrt(v[:,:,0]**2 + v[:,:,1]**2)
-            plt.imshow(speed)
-            plt.show()
-
-    def print_vector(self, s, v, full=False):
-        if self.DEBUG:
-            print(s)
-            if full:
-                print(v.tolist())
-            else:
-                print(v)
-            if self.DEBUG_BREAK:
-                input()
 
     def compute_speed(self, v):
         return np.sqrt(v[:, :, 0]**2 + v[:, :, 1]**2)
@@ -147,10 +107,7 @@ class CFDSimulator(BaseSimulator):
         for iiy1 in range(int(self.n)):
             for iix1 in range(int(self.m)):
                 s = (self.m * iiy1) + iix1
-                self.print_vector("Index: ", s)
-                #print("ix iy = %d %d" % (ix1, iy1))
-                #print("iix1, iiy1 = %d %d" % (iix1, iiy1))
-                #print("index %d" % s)
+                self.logger.print_vector("Index: ", s)
                 if not self.boundary(iiy1, iix1):
                     A[s,s] = -4
                     A[s, s+1] = 1
@@ -175,7 +132,7 @@ class CFDSimulator(BaseSimulator):
         for i in range(rows):
             for j in range(columns):
                 s = columns * i + j
-                self.print_vector("Pressure laplacian index: ", s)
+                self.logger.print_vector("Pressure laplacian index: ", s)
                 if self.boundaries[i,j]:
                     A[s,s] = -4
                     A[s,s-1] = 1
@@ -360,28 +317,23 @@ class CFDSimulator(BaseSimulator):
 
         # S = np.tril(A)
         T = S - A
-        self.print_vector("S: ", S.todense())
+        self.logger.print_vector("S: ", S.todense())
         # B = scipy.sparse.linalg.inv(S).dot(T)
         # el, ev = scipy.sparse.linalg.eigs(B)
-        # self.print_vector("Eigenvalues of inv(S)T: ", el)
-        # self.print_vector("Rate of convergence: ", el.max())
-        # self.print_vector("W: ", w)
         N = A.shape[0]
         p = np.zeros(N)
         for i in range(40):
             p = scipy.sparse.linalg.spsolve(S, w + T.dot(p))
-            self.print_vector("Pressure: ", p)
-            # test = w.reshape([self.n, self.m]) - self.compute_divergence(self.compute_gradient(p.reshape([self.n, self.m]), self.h, self.h), self.h, self.h)
-            # self.print_vector("divergence: ", test) 
+            self.logger.print_vector("Pressure: ", p)
         return p
 
     def projection(self, w3, dt):
         scale = 10
-        self.print_vector("w3: ", w3)
+        self.logger.print_vector("w3: ", w3)
         div_w3 = self.compute_divergence(w3, self.h, self.h, edge_order=1)
         div_w3_reshaped = div_w3.reshape(self.size)
         M, c = self.pressure_boundaries(div_w3_reshaped)
-        self.print_vector("Pressure laplacian before scaling: ", M.todense())
+        self.logger.print_vector("Pressure laplacian before scaling: ", M.todense())
         #if (M.todense() == M.todense().transpose()).all():
         #    print("M is symmetric")
         #diag_M = M * scipy.sparse.identity(M.shape[0])
@@ -393,8 +345,8 @@ class CFDSimulator(BaseSimulator):
         #exit(0)
         self.scale_boundaries(scale=scale)
         M_, c_ = self.scale_down(M, c, scale=scale)
-        self.print_vector("Scaled laplacian operator: ", M_)
-        self.print_vector("Scaled div(w3) operator: ", c_)
+        self.logger.print_vector("Scaled laplacian operator: ", M_)
+        self.logger.print_vector("Scaled div(w3) operator: ", c_)
         p_ = self.poisson(dt*M_, c_)
         #p = p_.reshape(int(self.n/self.h), int(self.m/self.h))
         # Set boundaries back 
@@ -404,15 +356,9 @@ class CFDSimulator(BaseSimulator):
         p = self.scale_up(p_, scale=scale)
         self.rescale_boundaries()
         grad_p = self.compute_gradient(p, self.h, self.h, edge_order=1)
-        #self.print_vector("b = ", c, full=True)
-        #self.print_vector("A = ", M.todense(), full=True)
-        #self.print_vector("A inverse", scipy.sparse.linalg.inv(M).todense(), full=True)
-        self.print_vector("p = ", p)
-        self.print_vector("grad p_x = ", grad_p[:,:,0])
-        self.print_vector("grad p_y = ", grad_p[:,:,1])
-        #self.print_vector("condition number of system: ", self.get_condition_number(M))
-        #self.print_vector("condition number of preconditioned system: ", self.get_condition_number(P))
-        #self.print_vector("Condition number of diagonalized matrix: ", self.get_condition_number(diag_M))
+        self.logger.print_vector("p = ", p)
+        self.logger.print_vector("grad p_x = ", grad_p[:,:,0])
+        self.logger.print_vector("grad p_y = ", grad_p[:,:,1])
         w4 = w3 - dt*grad_p 
         return (w4, p)
 
@@ -433,10 +379,10 @@ class CFDSimulator(BaseSimulator):
         uh[:,:,1] = uyh
         duh = self.compute_divergence(uh, self.h, self.h)
         lh = self.compute_divergence(self.compute_gradient(h, self.h, self.h), self.h, self.h)
-        self.print_vector("Substance laplacian: ", lh)
-        self.print_vector("Substance advection: ", duh)
+        self.logger.print_vector("Substance laplacian: ", lh)
+        self.logger.print_vector("Substance advection: ", duh)
         res = h - s*dt*a + k*lh*dt
-        self.print_vector("Resulting substance field: ", res)
+        self.logger.print_vector("Resulting substance field: ", res)
         self.rescale_boundaries()
         return self.scale_up_field(res) * self.non_boundaries
 
@@ -488,59 +434,54 @@ class CFDSimulator(BaseSimulator):
 
     def step(self, dt):
         w0 = self.velocities 
-        self.print_vector("w0 x", w0[:,:,0])
-        self.print_vector("w0 y", w0[:,:,1])
-        self.print_vector("div w0", self.compute_divergence(w0, self.h, self.h))
-        self.bmap, self.iteration = self.plot_change(self.iteration, w0, self.bmap)
-        self.plot_field(w0, "%d-w0" % self.iteration)
-        self.print_vector("w0 x error:", np.abs(w0[:,:,0]).max())
-        self.print_vector("w0 y error:", np.abs(w0[:,:,1]).max())
+        self.logger.print_vector("w0 x", w0[:,:,0])
+        self.logger.print_vector("w0 y", w0[:,:,1])
+        self.logger.print_vector("div w0", self.compute_divergence(w0, self.h, self.h))
+        self.logger.plot_field(w0, "%d-w0" % self.iteration)
+        self.logger.print_vector("w0 x error:", np.abs(w0[:,:,0]).max())
+        self.logger.print_vector("w0 y error:", np.abs(w0[:,:,1]).max())
 
         w1 = self.add_force(w0, dt, self.forces)
-        self.print_vector("w1 x", w1[:,:,0])
-        self.print_vector("w1 y", w1[:,:,1])
-        self.print_vector("div w1", self.compute_divergence(w1, self.h, self.h))
-        self.bmap, self.iteration = self.plot_change(self.iteration, w1, self.bmap)
-        self.plot_field(w1, "%d-w1" % self.iteration)
-        self.print_vector("w1 x error:", np.abs(w1[:,:,0]).max())
-        self.print_vector("w1 y error:", np.abs(w1[:,:,1]).max())
+        self.logger.print_vector("w1 x", w1[:,:,0])
+        self.logger.print_vector("w1 y", w1[:,:,1])
+        self.logger.print_vector("div w1", self.compute_divergence(w1, self.h, self.h))
+        self.logger.plot_field(w1, "%d-w1" % self.iteration)
+        self.logger.print_vector("w1 x error:", np.abs(w1[:,:,0]).max())
+        self.logger.print_vector("w1 y error:", np.abs(w1[:,:,1]).max())
         
         w2 = self.perform_advection(w1, dt)
-        self.print_vector("w2 x", w2[:,:,0])
-        self.print_vector("w2 y", w2[:,:,1])
-        self.print_vector("div w2", self.compute_divergence(w2, self.h, self.h))
-        self.bmap, self.iteration = self.plot_change(self.iteration, w2, self.bmap)
-        self.plot_field(w2, "%d-w2" % self.iteration)
-        self.print_vector("w2 x error:", np.abs(w2[:,:,0]).max())
-        self.print_vector("w2 y error:", np.abs(w2[:,:,1]).max())
+        self.logger.print_vector("w2 x", w2[:,:,0])
+        self.logger.print_vector("w2 y", w2[:,:,1])
+        self.logger.print_vector("div w2", self.compute_divergence(w2, self.h, self.h))
+        self.logger.plot_field(w2, "%d-w2" % self.iteration)
+        self.logger.print_vector("w2 x error:", np.abs(w2[:,:,0]).max())
+        self.logger.print_vector("w2 y error:", np.abs(w2[:,:,1]).max())
         
         w3 = self.perform_diffusion(w2, dt)
-        self.print_vector("w3 x", w3[:,:,0])
-        self.print_vector("w3 y", w3[:,:,1])
-        self.print_vector("div w3", self.compute_divergence(w3, self.h, self.h))
-        self.bmap, self.iteration = self.plot_change(self.iteration, w3, self.bmap)
-        self.plot_field(w3, "%d-w3" % self.iteration)
-        self.print_vector("w3 x error:", np.abs(w3[:,:,0]).max())
-        self.print_vector("w3 y error:", np.abs(w3[:,:,1]).max())
+        self.logger.print_vector("w3 x", w3[:,:,0])
+        self.logger.print_vector("w3 y", w3[:,:,1])
+        self.logger.print_vector("div w3", self.compute_divergence(w3, self.h, self.h))
+        self.logger.plot_field(w3, "%d-w3" % self.iteration)
+        self.logger.print_vector("w3 x error:", np.abs(w3[:,:,0]).max())
+        self.logger.print_vector("w3 y error:", np.abs(w3[:,:,1]).max())
 
         w4, p = self.perform_projection(w3, dt)
-        self.print_vector("w4 x", w4[:,:,0])
-        self.print_vector("w4 y", w4[:,:,1])
-        self.print_vector("div w4", self.compute_divergence(w4, self.h, self.h))
+        self.logger.print_vector("w4 x", w4[:,:,0])
+        self.logger.print_vector("w4 y", w4[:,:,1])
+        self.logger.print_vector("div w4", self.compute_divergence(w4, self.h, self.h))
         self.velocities = self.reset_solid_velocities(w4)
         self.pressure = p 
-        self.plot_field(w4, "%d-w4" % self.iteration)
-        self.print_vector("w4 x error:", np.abs(w4[:,:,0]).max())
-        self.print_vector("w4 y error:", np.abs(w4[:,:,1]).max())
+        self.logger.plot_field(w4, "%d-w4" % self.iteration)
+        self.logger.print_vector("w4 x error:", np.abs(w4[:,:,0]).max())
+        self.logger.print_vector("w4 y error:", np.abs(w4[:,:,1]).max())
 
         self.densities = self.advect_substance(self.velocities, self.densities, self.path, dt)
         
-        self.print_vector("div v", self.compute_divergence(self.velocities, self.h, self.h))
-        self.bmap, self.iteration = self.plot_change(self.iteration, w4, self.bmap)
+        self.logger.print_vector("div v", self.compute_divergence(self.velocities, self.h, self.h))
         
-        self.print_vector("divergence error", np.abs(self.compute_divergence(self.velocities, self.h, self.h)).max())
+        self.logger.print_vector("divergence error", np.abs(self.compute_divergence(self.velocities, self.h, self.h)).max())
 
         self.forces.fill(0)
-        self.print_vector("Substance sum: ", self.densities.sum())
-        self.print_vector("Substance: ", self.densities)
+        self.logger.print_vector("Substance sum: ", self.densities.sum())
+        self.logger.print_vector("Substance: ", self.densities)
         self.iteration += 1

@@ -9,12 +9,9 @@ import scipy.interpolate as interpolate
 import scipy.sparse
 import scipy.sparse.linalg
 
-import matplotlib.pyplot as plt 
-
 import os.path
 
 class CFDImplicitSimulator(CFDSimulator):
-    
 
     def advection(self, w1, dt, path):
         w2 = w1.copy()
@@ -44,10 +41,10 @@ class CFDImplicitSimulator(CFDSimulator):
         L1, c_x = self.scale_down(L, c_x)
         L2, c_y = self.scale_down(L, c_y)
 
-        self.print_vector("L1", L1.todense())
-        self.print_vector("L2", L2.todense())
-        self.print_vector("c_x", c_x)
-        self.print_vector("c_y", c_y)
+        self.logger.print_vector("L1", L1.todense())
+        self.logger.print_vector("L2", L2.todense())
+        self.logger.print_vector("c_x", c_x)
+        self.logger.print_vector("c_y", c_y)
         w30 = scipy.sparse.linalg.spsolve(L1, c_x)
         w31 = scipy.sparse.linalg.spsolve(L2, c_y)
         

@@ -1,11 +1,17 @@
 
+from ..loggers import BaseLogger
+
 class BaseSimulator(object):
     
-    def __init__(self, densities, velocities, boundary, viscosity):
+    def __init__(self, densities, velocities, boundary, viscosity, logger=None):
         self.boundaries = boundary 
         self.viscosity = viscosity
         self.densities = densities 
         self.velocities = velocities
+        if logger != None:
+            self.logger = logger 
+        else:
+            self.logger = BaseLogger()
         self.start()
     
     def start(self):
