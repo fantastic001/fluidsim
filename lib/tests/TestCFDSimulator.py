@@ -1,5 +1,5 @@
 
-from ..simulators import CFDSimulator
+from ..simulators import CFDSimulator, CFDImplicitSimulator, CFDExplicitSimulator
 from ..structures import Cell 
 
 import unittest 
@@ -99,7 +99,7 @@ class TestCFDSimulator(unittest.TestCase):
         nptest.assert_array_almost_equal(expected, res, decimal=3)
 
     def test_advection(self):
-        simulator = CFDSimulator(np.zeros([10,10]),np.zeros([10,10, 2]),np.zeros([10,10]),0)
+        simulator = CFDExplicitSimulator(np.zeros([10,10]),np.zeros([10,10, 2]),np.zeros([10,10]),0)
         # construct grid first 
         y, x = np.mgrid[0:10:simulator.h, 0:10:simulator.h]
         u = np.zeros([int(10/simulator.h), int(10/simulator.h), 2])
@@ -128,7 +128,7 @@ class TestCFDSimulator(unittest.TestCase):
 
     def test_diffusion(self):
         k = 0.000001
-        simulator = CFDSimulator(np.zeros([100,100]),np.zeros([100,100, 2]),np.zeros([100,100]),k)
+        simulator = CFDImplicitSimulator(np.zeros([100,100]),np.zeros([100,100, 2]),np.zeros([100,100]),k)
         # construct grid first 
         y, x = np.mgrid[0:100:simulator.h, 0:100:simulator.h]
         u = np.zeros([int(100/simulator.h), int(100/simulator.h), 2])
@@ -164,7 +164,7 @@ class TestCFDSimulator(unittest.TestCase):
         nptest.assert_array_almost_equal(res[1:-1,1:-1], expected[1:-1,1:-1], decimal=2)
 
     def test_laplacian_operator(self):
-        simulator = CFDSimulator(np.zeros([10,10]),np.zeros([10,10, 2]),np.zeros([10,10]),1)
+        simulator = CFDImplicitSimulator(np.zeros([10,10]),np.zeros([10,10, 2]),np.zeros([10,10]),1)
         n,m = int(10/simulator.h), int(10/simulator.h)
         # construct grid first 
         y, x = np.mgrid[0:10:simulator.h, 0:10:simulator.h]
@@ -216,7 +216,7 @@ class TestCFDSimulator(unittest.TestCase):
         # WARNING: This test assumes correct compute_divergence method
         # TODO Fix this to be independent
         dim = 100
-        simulator = CFDSimulator(np.zeros([dim,dim]),np.zeros([dim,dim, 2]),np.zeros([dim,dim]),0.001)
+        simulator = CFDImplicitSimulator(np.zeros([dim,dim]),np.zeros([dim,dim, 2]),np.zeros([dim,dim]),0.001)
         # construct grid first 
         y, x = np.mgrid[0:dim:simulator.h, 0:dim:simulator.h]
         u = np.zeros([int(dim/simulator.h), int(dim/simulator.h), 2])
