@@ -121,10 +121,17 @@ class TestCFDSimulator(unittest.TestCase):
 
         u[:,:,0] = x*y
         u[:,:,1] = x*y
-        expected[:,:,0] = 2*x*(y**2)
-        expected[:,:,1] = 2*y*(x**2)
+        expected[:,:,0] = x*y**2 + y*x**2
+        expected[:,:,1] = x*y**2 + y*x**2
         res = simulator.advection_primitive(u)
-        nptest.assert_allclose(res, expected, rtol=0.1)
+        nptest.assert_allclose(res, expected, rtol=0.2)
+
+        u[:,:,0] = x**2 + y**2
+        u[:,:,1] = x*y
+        expected[:,:,0] = 2*x*(x**2 + y**2) + 2*y*(x*y) 
+        expected[:,:,1] = y*(x**2 + y**2) + y*x**2
+        res = simulator.advection_primitive(u)
+        nptest.assert_allclose(res, expected, rtol=0.2)
 
     def test_diffusion(self):
         k = 0.000001
