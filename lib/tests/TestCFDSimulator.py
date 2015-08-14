@@ -135,11 +135,12 @@ class TestCFDSimulator(unittest.TestCase):
 
     def test_diffusion(self):
         k = 0.000001
-        simulator = CFDImplicitSimulator(np.zeros([100,100]),np.zeros([100,100, 2]),np.zeros([100,100]),k)
+        size = 100
+        simulator = CFDImplicitSimulator(np.zeros([size,size]),np.zeros([size,size, 2]),np.zeros([size,size]),k)
         # construct grid first 
-        y, x = np.mgrid[0:100:simulator.h, 0:100:simulator.h]
-        u = np.zeros([int(100/simulator.h), int(100/simulator.h), 2])
-        expected = np.zeros([int(100/simulator.h),int(100/simulator.h), 2])
+        y, x = np.mgrid[0:size:simulator.h, 0:size:simulator.h]
+        u = np.zeros([int(size/simulator.h), int(size/simulator.h), 2])
+        expected = np.zeros([int(size/simulator.h),int(size/simulator.h), 2])
         dt = 0.1
 
         u[:,:,0] = 100
