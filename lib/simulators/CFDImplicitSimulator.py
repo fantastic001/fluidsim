@@ -13,24 +13,25 @@ import os.path
 
 class CFDImplicitSimulator(CFDSimulator):
 
-    def advection(self, w1, dt, path):
+    def advection(self, w1, dt):
         w2 = w1.copy()
-        psi = np.clip(path[:,:,1], 0, self.n-1).astype(int)
-        psj = np.clip(path[:,:,0], 0, self.m-1).astype(int)
-        w2[psi,psj,0] = w1[:, :, 0]
-        w2[psi,psj,1] = w1[:, :, 1]
+        
+        psy = self.y - dt*w1[:, :, 1]
+        psx = self.x - dt*w1[:, :, 0]
+        ax = np.linspace(0, self.m, self.m)
+        ay = np.linspace(0, self.n, self.n)
+
+        func0 = interpolate.RectBivariateSpline(ax, ay, w1[:,:,0])
+        func1 = interpolate.RectBivariateSpline(ax, ay, w1[:,:,1])
+        
+        self.logger.print_vector("psx", psx)
+
+        w2[:,:,0] = func0.ev(psy, psx)
+        w2[:,:,1] = func1.ev(psy, psx)
+
+        self.logger.print_vector("w2_x interpolated", w2[:,:,0])
         return w2
         
-    def update_path(self, path, w1, dt):
-        # set new paths 
-        newpath = path.copy()
-        for i in range(int(self.n)):
-            for j in range(int(self.m)):
-                if not (path[i,j,0] < 0 or path[i,j,0] >= self.m or path[i,j,1] < 0 or path[i,j,1] >= self.n):
-                    newpath[i,j,0] += dt*w1[path[i,j,1], path[i,j,0], 0]
-                    newpath[i,j,1] += dt*w1[path[i,j,1], path[i,j,0], 1]
-        return newpath
-
     def diffusion(self, w2, dt):
         #scale = 10
         w2_x = w2[:,:,0].reshape(self.size)
@@ -59,8 +60,7 @@ class CFDImplicitSimulator(CFDSimulator):
         return self.reset_solid_velocities(w3)
     
     def perform_advection(self, w1, dt):
-        self.path = self.update_path(self.path, w1, dt)
-        w2 = self.advection(w1, dt, self.path)
+        w2 = self.advection(w1, dt)
         return w2
 
     def perform_diffusion(self, w2, dt):
