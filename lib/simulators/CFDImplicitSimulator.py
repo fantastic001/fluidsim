@@ -32,25 +32,25 @@ class CFDImplicitSimulator(CFDSimulator):
         return newpath
 
     def diffusion(self, w2, dt):
-        scale = 10
+        #scale = 10
         w2_x = w2[:,:,0].reshape(self.size)
         w2_y = w2[:,:,1].reshape(self.size)
         M, c_x, c_y = self.velocity_boundaries(w2_x, w2_y)
         L = self.I - (self.viscosity * dt)*M
-        self.scale_boundaries(scale=scale)
-        L1, c_x = self.scale_down(L, c_x)
-        L2, c_y = self.scale_down(L, c_y)
+        #self.scale_boundaries(scale=scale)
+        #L1, c_x = self.scale_down(L, c_x)
+        #L2, c_y = self.scale_down(L, c_y)
 
-        self.logger.print_vector("L1", L1.todense())
-        self.logger.print_vector("L2", L2.todense())
+        #self.logger.print_vector("L1", L1.todense())
+        #self.logger.print_vector("L2", L2.todense())
         self.logger.print_vector("c_x", c_x)
         self.logger.print_vector("c_y", c_y)
-        w30 = scipy.sparse.linalg.spsolve(L1, c_x)
-        w31 = scipy.sparse.linalg.spsolve(L2, c_y)
+        w30 = scipy.sparse.linalg.spsolve(L, c_x)
+        w31 = scipy.sparse.linalg.spsolve(L, c_y)
         
-        w30 = self.scale_up(w30)
-        w31 = self.scale_up(w31)
-        self.rescale_boundaries()
+        #w30 = self.scale_up(w30)
+        #w31 = self.scale_up(w31)
+        #self.rescale_boundaries()
 
         w3 = np.zeros([int(self.n/self.h), int(self.m/self.h), 2])
         w3[:,:,0] = w30.reshape([int(self.n/self.h), int(self.m/self.h)])
