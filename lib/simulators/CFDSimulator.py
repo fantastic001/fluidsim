@@ -306,6 +306,7 @@ class CFDSimulator(BaseSimulator):
                     b[i,j-1] = True
                     b[i-1,j-1] = True
         self.boundaries = b 
+        self.logger.print_vector("Scaled boundaries", b)
 
     def rescale_boundaries(self):
         self.boundaries = self.tmp_boundaries.copy()

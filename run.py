@@ -76,6 +76,6 @@ draw_from_function(v, N, M, v_func)
 b = np.zeros([N,M])
 draw_from_function(b,N,M, domain_func)
 
-simulator = simulator_class(p,v,b, viscosity, logger=StandardOutputLogger())
+simulator = simulator_class(p,v,b, viscosity, logger=StandardOutputLogger(debug=True))
 animator = animator_class(simulator, **animator_params) 
 animator.run(num_iters, step=0.1)
