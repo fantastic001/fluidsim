@@ -26,49 +26,47 @@ class TestCFDImplicitSimulator(unittest.TestCase):
         
         n,m = size, size
         
-        # NOTE: We are always creating new simulator because of path updating
-        
-        # testing primitive advection first 
-        
         simulator = CFDImplicitSimulator(np.zeros([size,size]),np.zeros([size,size, 2]),np.zeros([size,size]),0)
+        
         u[:,:,0] = 100*np.ones([n,m])
         u[:,:,1] = 100*np.ones([n,m])
         expected[:,:,0] = 100
         expected[:,:,1] = 100
         res = simulator.perform_advection(u, dt)
         nptest.assert_allclose(res, expected, rtol=0.05)
+        self.assertTrue(np.floor(res.max()) <= np.floor(u.max()))
 
-        simulator = CFDImplicitSimulator(np.zeros([size,size]),np.zeros([size,size, 2]),np.zeros([size,size]),0)
         u[:,:,0] = x
         u[:,:,1] = 0
         expected[:,:,0] = x - dt*x
         expected[:,:,1] = 0
         res = simulator.perform_advection(u, dt)
         nptest.assert_allclose(res, expected, rtol=0.05, atol=0.01)
-        
-        simulator = CFDImplicitSimulator(np.zeros([size,size]),np.zeros([size,size, 2]),np.zeros([size,size]),0)
+        self.assertTrue(np.floor(res.max()) <= np.floor(u.max()))
+
         u[:,:,0] = x
         u[:,:,1] = y
         expected[:,:,0] = x - dt*x
         expected[:,:,1] = y - dt*y
         res = simulator.perform_advection(u, dt)
         nptest.assert_allclose(res, expected, rtol=0.05, atol=0.01)
+        self.assertTrue(np.floor(res.max()) <= np.floor(u.max()))
 
-        simulator = CFDImplicitSimulator(np.zeros([size,size]),np.zeros([size,size, 2]),np.zeros([size,size]),0)
         u[:,:,0] = 1e-03*x*y
         u[:,:,1] = 1e-03*x*y
         expected[:,:,0] = 1e-03*x*y - 1e-06*dt*(x*y**2 + y*x**2)
         expected[:,:,1] = 1e-03*x*y - 1e-06*dt*(x*y**2 + y*x**2)
         res = simulator.perform_advection(u, dt)
         nptest.assert_allclose(res, expected, rtol=0.2, atol=1)
+        self.assertTrue(np.floor(res.max()) <= np.floor(u.max()))
 
-        simulator = CFDImplicitSimulator(np.zeros([size,size]),np.zeros([size,size, 2]),np.zeros([size,size]),0)
         u[:,:,0] = 1e-03*(x**2 + y**2)
         u[:,:,1] = 1e-03*(x*y)
         expected[:,:,0] = 1e-03*(x**2 + y**2) - 1e-06*dt*(2*x*(x**2 + y**2) + 2*y*(x*y))
         expected[:,:,1] = 1e-03*x*y - 1e-06*dt*(y*(x**2 + y**2) + y*x**2)
         res = simulator.perform_advection(u, dt)
         nptest.assert_allclose(res, expected, rtol=0.2, atol=1)
+        self.assertTrue(np.floor(res.max()) <= np.floor(u.max()))
 
     def test_diffusion(self):
         k = 0.000001
