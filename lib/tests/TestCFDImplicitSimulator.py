@@ -107,3 +107,14 @@ class TestCFDImplicitSimulator(unittest.TestCase):
         expected[:,:,0] = x**2 + y**2 + k*4*dt
         expected[:,:,1] = x**2 + y**2 + k*4*dt
         nptest.assert_allclose(res[1:-1,1:-1], expected[1:-1,1:-1], atol=0.001, rtol=0.01)
+        
+        # Symmetry test 
+        u[:,:,0] = x
+        u[:,:,1] = 0
+        res = simulator.diffusion(u, dt)
+        nptest.assert_allclose(res[1:size // 2, 1:-1, 0], res[size-2:(size // 2)-1:-1, 1:-1, 0], atol=0.01, rtol=0.001)
+        
+        u[:,:,0] = x**2 
+        u[:,:,1] = 0
+        res = simulator.diffusion(u, dt)
+        nptest.assert_allclose(res[1:size // 2, 1:-1, 0], res[size-2:(size // 2)-1:-1, 1:-1, 0], atol=0.01, rtol=0.001)
