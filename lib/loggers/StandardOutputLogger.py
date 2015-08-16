@@ -1,6 +1,7 @@
 
 from .BaseLogger import BaseLogger
 
+import matplotlib.pyplot as plt
 
 
 class StandardOutputLogger(BaseLogger):
