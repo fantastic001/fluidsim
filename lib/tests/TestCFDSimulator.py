@@ -174,3 +174,36 @@ class TestCFDSimulator(unittest.TestCase):
         u[:,:,1] = y
         w, p = simulator.projection(u, dt)
         nptest.assert_allclose(simulator.compute_divergence(w, simulator.h, simulator.h), expected, atol=10, rtol=0.1)
+
+    def test_scale_boundaries(self):
+        
+        dim = 100
+        scale = 10
+        boundaries = np.zeros([dim, dim]).astype(bool)
+        p,v = np.zeros([dim, dim]), np.zeros([dim, dim, 2])
+        k = 1
+        expected = np.zeros([scale, scale]).astype(bool)
+        
+        b = boundaries.copy()
+        b[[55], [55]] = True
+        e = expected.copy()
+        e[5, 5] = True
+        simulator = CFDSimulator(p,v,b,k)
+        simulator.scale_boundaries(scale=scale)
+        nptest.assert_array_almost_equal(simulator.boundaries, e)
+        
+        b = boundaries.copy()
+        b[[44, 55], [44, 55]] = True
+        e = expected.copy()
+        e[[4,5], [4,5]] = True
+        simulator = CFDSimulator(p,v,b,k)
+        simulator.scale_boundaries(scale=scale)
+        nptest.assert_array_almost_equal(simulator.boundaries, e)
+        
+        b = boundaries.copy()
+        b[[44, 55, 98], [44, 55, 98]] = True
+        e = expected.copy()
+        e[[4,5, 8,8,9,9], [4,5,8,9,8,9]] = True
+        simulator = CFDSimulator(p,v,b,k)
+        simulator.scale_boundaries(scale=scale)
+        nptest.assert_array_almost_equal(simulator.boundaries, e)
