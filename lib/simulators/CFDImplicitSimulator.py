@@ -65,6 +65,4 @@ class CFDImplicitSimulator(CFDSimulator):
 
     def perform_diffusion(self, w2, dt):
         w3 = self.diffusion(w2, dt)
-        w3[:,:,0] = self.scale_up_field(self.scale_down_field(w3[:,:,0]))
-        w3[:,:,1] = self.scale_up_field(self.scale_down_field(w3[:,:,1]))
         return w3
