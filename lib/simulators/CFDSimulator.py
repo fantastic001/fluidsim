@@ -297,9 +297,13 @@ class CFDSimulator(BaseSimulator):
         b = np.zeros([scale, scale], dtype=np.bool)
         stepr = int(self.n / scale) + 1
         stepc = int(self.m / scale) + 1
+        for i in range(0, scale):
+            for j in range(0, scale):
+                if self.boundaries[i*stepr, j*stepc]:
+                    b[i,j] = True
         for i in range(1, scale):
             for j in range(1, scale):
-                has_solids = self.boundaries[(i-1)*stepr:i*stepr, (j-1)*stepc:j*stepc].any()
+                has_solids = self.boundaries[(i-1)*stepr+1:i*stepr, (j-1)*stepc+1:j*stepc].any()
                 if has_solids:
                     b[i,j] = True
                     b[i-1,j] = True
