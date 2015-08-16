@@ -85,25 +85,25 @@ class TestCFDImplicitSimulator(unittest.TestCase):
         res = simulator.diffusion(u, dt)
         expected[:,:,0] = 100
         expected[:,:,1] = 100
-        nptest.assert_array_almost_equal(res[1:-1,1:-1], expected[1:-1,1:-1], decimal=3)
+        nptest.assert_allclose(res[1:-1,1:-1], expected[1:-1,1:-1], atol=0.001, rtol=0.01)
 
         u[:,:,0] = x
         u[:,:,1] = y
         res = simulator.diffusion(u, dt)
         expected[:,:,0] = x
         expected[:,:,1] = y
-        nptest.assert_array_almost_equal(res[1:-1,1:-1], expected[1:-1,1:-1], decimal=3)
+        nptest.assert_allclose(res[1:-1,1:-1], expected[1:-1,1:-1], atol=0.001, rtol=0.01)
 
         u[:,:,0] = x**2
         u[:,:,1] = y**2
         res = simulator.diffusion(u, dt)
         expected[:,:,0] = x**2 + k*2*dt
         expected[:,:,1] = y**2 + k*2*dt
-        nptest.assert_array_almost_equal(res[1:-1,1:-1], expected[1:-1,1:-1], decimal=3)
+        nptest.assert_allclose(res[1:-1,1:-1], expected[1:-1,1:-1], atol=0.001, rtol=0.01)
         
         u[:,:,0] = x**2 + y**2
         u[:,:,1] = x**2 + y**2
         res = simulator.diffusion(u, dt)
         expected[:,:,0] = x**2 + y**2 + k*4*dt
         expected[:,:,1] = x**2 + y**2 + k*4*dt
-        nptest.assert_array_almost_equal(res[1:-1,1:-1], expected[1:-1,1:-1], decimal=2)
+        nptest.assert_allclose(res[1:-1,1:-1], expected[1:-1,1:-1], atol=0.001, rtol=0.01)
