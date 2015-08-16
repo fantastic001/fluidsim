@@ -177,10 +177,14 @@ class TestCFDSimulator(unittest.TestCase):
         
         # we expect symmatric response to symmetric input
         u[:,:,0] = x
-        u[:,:,1] = x
+        u[:,:,1] = 0
         w, p = simulator.projection(u, dt)
-        nptest.assert_allclose(w[0:dim // 2, :, 0], w[dim-1:(dim // 2)-1:-1, :, 0], atol=0.01, rtol=0.05)
-        nptest.assert_allclose(w[0:dim // 2, :, 1], w[dim-1:(dim // 2)-1:-1, :, 1], atol=0.01, rtol=0.05)
+        nptest.assert_allclose(w[0:dim // 2, :, 0], w[dim-1:(dim // 2)-1:-1, :, 0], atol=0.01, rtol=0.001)
+        
+        u[:,:,0] = 0
+        u[:,:,1] = y
+        w, p = simulator.projection(u, dt)
+        nptest.assert_allclose(w[:, 0:dim // 2, 1], w[:, dim-1:(dim // 2)-1:-1, 1], atol=0.01, rtol=0.001)
 
     def test_scale_boundaries(self):
         
