@@ -163,14 +163,14 @@ class TestCFDSimulator(unittest.TestCase):
         u[:,:,0] = 1e+15
         u[:,:,1] = 1e+15
         w, p = simulator.projection(u, dt)
-        nptest.assert_array_almost_equal(simulator.compute_divergence(w, simulator.h, simulator.h), expected)
+        nptest.assert_allclose(simulator.compute_divergence(w, simulator.h, simulator.h), expected, atol=15, rtol=0.1)
         
         u[:,:,0] = x**2 + y**2
         u[:,:,1] = 2*x**2 + y**2
         w, p = simulator.projection(u, dt)
-        nptest.assert_array_almost_equal(simulator.compute_divergence(w, simulator.h, simulator.h), expected, decimal=-3)
+        nptest.assert_allclose(simulator.compute_divergence(w, simulator.h, simulator.h), expected, atol=1000, rtol=0.1)
 
         u[:,:,0] = x
         u[:,:,1] = y
         w, p = simulator.projection(u, dt)
-        nptest.assert_array_almost_equal(simulator.compute_divergence(w, simulator.h, simulator.h), expected, decimal=-2)
+        nptest.assert_allclose(simulator.compute_divergence(w, simulator.h, simulator.h), expected, atol=10, rtol=0.1)
