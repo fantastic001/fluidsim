@@ -27,6 +27,12 @@ class StandardOutputLogger(BaseLogger):
             plt.title(title)
             if self.SAVE_STEPS:
                 plt.savefig(self.SAVE_DIR + "/" + title + ".png")
+                f = open(self.SAVE_DIR +  "/" + title + ".log", "w")
+                f.write("x\n")
+                f.write(str(v[:,:,0].tolist()).replace("]", "]\n"))
+                f.write("y\n")
+                f.write(str(v[:,:,1].tolist()).replace("]", "]\n"))
+                f.close()
             else:
                 plt.show()
             plt.clf()
