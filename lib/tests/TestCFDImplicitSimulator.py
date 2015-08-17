@@ -67,6 +67,23 @@ class TestCFDImplicitSimulator(unittest.TestCase):
         res = simulator.perform_advection(u, dt)
         nptest.assert_allclose(res, expected, rtol=0.2, atol=1)
         self.assertTrue(np.floor(res.max()) <= np.floor(u.max()))
+        
+        # Symmetry test 
+        u[:,:,0] = x
+        u[:,:,1] = 0
+        res = simulator.perform_advection(u, dt)
+        nptest.assert_allclose(res[1:size // 2, 1:-1, 0], res[size-2:(size // 2)-1:-1, 1:-1, 0], atol=0.01, rtol=0.001)
+        
+        u[:,:,0] = x**2 
+        u[:,:,1] = 0
+        res = simulator.perform_advection(u, dt)
+        nptest.assert_allclose(res[1:size // 2, 1:-1, 0], res[size-2:(size // 2)-1:-1, 1:-1, 0], atol=0.01, rtol=0.001)
+        
+        u[:,:,0] = x**2 
+        u[:,:,1] = size/2 - y
+        res = simulator.perform_advection(u, dt)
+        nptest.assert_allclose(res[1:size // 2, 1:-1, 0], res[size-2:(size // 2)-1:-1, 1:-1, 0], atol=0.01, rtol=0.001)
+        
 
     def test_diffusion(self):
         k = 0.000001
@@ -114,5 +131,10 @@ class TestCFDImplicitSimulator(unittest.TestCase):
         
         u[:,:,0] = x**2 
         u[:,:,1] = 0
+        res = simulator.diffusion(u, dt)
+        nptest.assert_allclose(res[1:size // 2, 1:-1, 0], res[size-2:(size // 2)-1:-1, 1:-1, 0], atol=0.01, rtol=0.001)
+        
+        u[:,:,0] = x**2 
+        u[:,:,1] = size/2 - y
         res = simulator.diffusion(u, dt)
         nptest.assert_allclose(res[1:size // 2, 1:-1, 0], res[size-2:(size // 2)-1:-1, 1:-1, 0], atol=0.01, rtol=0.001)

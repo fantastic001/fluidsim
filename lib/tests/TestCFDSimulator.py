@@ -186,6 +186,13 @@ class TestCFDSimulator(unittest.TestCase):
         w, p = simulator.projection(u, dt)
         nptest.assert_allclose(w[:, 0:dim // 2, 1], w[:, dim-1:(dim // 2)-1:-1, 1], atol=0.01, rtol=0.001)
 
+        u[:,:,0] = 10 - x/10
+        u[[0, -1], :, 0] = 0
+        u[:, [0, -1], 0] = 0
+        u[:,:,1] = 0
+        w, p = simulator.projection(u, dt)
+        nptest.assert_allclose(w[0:dim // 2, :, 0], w[dim-1:(dim // 2)-1:-1, :, 0], atol=0.01, rtol=0.001)
+
     def test_scale_boundaries(self):
         
         dim = 100
