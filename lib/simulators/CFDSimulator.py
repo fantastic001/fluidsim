@@ -107,7 +107,6 @@ class CFDSimulator(BaseSimulator):
         for iiy1 in range(int(self.n)):
             for iix1 in range(int(self.m)):
                 s = (self.m * iiy1) + iix1
-                self.logger.print_vector("Index: ", s)
                 if not self.boundary(iiy1, iix1):
                     A[s,s] = -4
                     A[s, s+1] = 1
@@ -132,7 +131,6 @@ class CFDSimulator(BaseSimulator):
         for i in range(rows):
             for j in range(columns):
                 s = columns * i + j
-                self.logger.print_vector("Pressure laplacian index: ", s)
                 if self.boundaries[i,j]:
                     A[s,s] = -4
                     A[s,s-1] = 1
@@ -329,12 +327,10 @@ class CFDSimulator(BaseSimulator):
         p = np.zeros(N)
         for i in range(40):
             p = scipy.sparse.linalg.spsolve(S, w + T.dot(p))
-            self.logger.print_vector("Pressure: ", p)
         return p
 
     def projection(self, w3, dt):
         scale = 10
-        self.logger.print_vector("w3: ", w3)
         div_w3 = self.compute_divergence(w3, self.h, self.h, edge_order=1)
         div_w3_reshaped = div_w3.reshape(self.size)
         M, c = self.pressure_boundaries(div_w3_reshaped)
@@ -384,10 +380,7 @@ class CFDSimulator(BaseSimulator):
         uh[:,:,1] = uyh
         duh = self.compute_divergence(uh, self.h, self.h)
         lh = self.compute_divergence(self.compute_gradient(h, self.h, self.h), self.h, self.h)
-        self.logger.print_vector("Substance laplacian: ", lh)
-        self.logger.print_vector("Substance advection: ", duh)
         res = h - s*dt*a + k*lh*dt
-        self.logger.print_vector("Resulting substance field: ", res)
         self.rescale_boundaries()
         return self.scale_up_field(res) * self.non_boundaries
 
