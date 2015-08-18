@@ -348,19 +348,19 @@ class CFDSimulator(BaseSimulator):
         M_, c_ = self.scale_down(M, c, scale=scale)
         self.logger.print_vector("Scaled laplacian operator: ", M_)
         self.logger.print_vector("Scaled div(w3) operator: ", c_)
-        p_ = self.poisson(dt*M_, c_)
+        p_ = self.poisson(M_, c_)
         #p = p_.reshape(int(self.n/self.h), int(self.m/self.h))
         # Set boundaries back 
         p_ = p_.reshape(10,10)
-        p_ = self.reset_edge_pressure(p_)
         
         p = self.scale_up(p_, scale=scale)
         self.rescale_boundaries()
+        p_ = self.reset_edge_pressure(p_)
         grad_p = self.compute_gradient(p, self.h, self.h, edge_order=1)
         self.logger.print_vector("p = ", p)
         self.logger.print_vector("grad p_x = ", grad_p[:,:,0])
         self.logger.print_vector("grad p_y = ", grad_p[:,:,1])
-        w4 = w3 - dt*grad_p 
+        w4 = w3 - grad_p 
         return (w4, p)
 
     def advect_substance(self, u, h, path, dt):
