@@ -18,11 +18,11 @@ class CFDImplicitSimulator(CFDSimulator):
         
         psy = self.y - dt*w1[:, :, 1]
         psx = self.x - dt*w1[:, :, 0]
-        ax = np.linspace(0, self.m, self.m)
-        ay = np.linspace(0, self.n, self.n)
+        ax = np.linspace(0, self.m-1, self.m)
+        ay = np.linspace(0, self.n-1, self.n)
 
-        func0 = interpolate.RectBivariateSpline(ax, ay, w1[:,:,0])
-        func1 = interpolate.RectBivariateSpline(ax, ay, w1[:,:,1])
+        func0 = interpolate.RectBivariateSpline(ax, ay, w1[:,:,0], kx=1, ky=1)
+        func1 = interpolate.RectBivariateSpline(ax, ay, w1[:,:,1], kx=1, ky=1)
         
         self.logger.print_vector("psx", psx)
 
