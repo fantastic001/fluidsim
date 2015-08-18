@@ -1,7 +1,7 @@
 
 
 def circle_center(x,y,n,m):
-    if (x - 0.55*m)**2 + (y-0.55*n)**2 <= 8**2:
+    if (x - 0.495*m)**2 + (y-0.495*n)**2 <= 5**2:
         return 1.0
     return 0.0
 
