@@ -19,11 +19,12 @@ class CFDSimulator(BaseSimulator):
             return str(hash(self.boundaries.tostring()))
 
     def save_sparse_csr(self, filename,array):
-        np.savez(filename,data = array.data ,indices=array.indices, indptr =array.indptr, shape=array.shape)
+        a = array.tocsr()
+        np.savez(filename,data = a.data ,indices=a.indices, indptr =a.indptr, shape=a.shape)
 
     def load_sparse_csr(self, filename):
         loader = np.load(filename)
-        return scipy.sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape=loader["shape"])
+        return scipy.sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape=loader["shape"]).tolil()
 
     def compute_speed(self, v):
         return np.sqrt(v[:, :, 0]**2 + v[:, :, 1]**2)
@@ -81,13 +82,13 @@ class CFDSimulator(BaseSimulator):
 
     def get_scaling_condition(self, scale=10):
         n,m = (int(self.n), int(self.m))
-        cond = np.zeros([self.n*self.m, self.n*self.m], dtype=np.bool)
+        cond = np.zeros([int(self.n*self.m), int(self.n*self.m)], dtype=np.bool)
         for i in range(n):
             for j in range(m):
                 for k in range(n):
                     for l in range(m):
                         if i % (scale+1) == 0 and j % (scale+1) == 0 and k % (scale+1) == 0 and l % (scale+1) == 0:
-                            cond[i*self.m + j, k*self.m + l] = True
+                            cond[int(i*self.m) + j, int(k*self.m) + l] = True
         return cond
 
     def get_laplacian_operator(self):
@@ -102,7 +103,7 @@ class CFDSimulator(BaseSimulator):
         if os.path.isfile(cache_filename):
             A = self.load_sparse_csr(cache_filename)
             return (A, I, size)
-        
+
         A = scipy.sparse.lil_matrix((size, size))
         for iiy1 in range(int(self.n)):
             for iix1 in range(int(self.m)):
@@ -113,7 +114,6 @@ class CFDSimulator(BaseSimulator):
                     A[s, s-1] = 1
                     A[s,s+c] = 1 
                     A[s,s-c] = 1
-        A = A.tocsr()
         self.save_sparse_csr(cache_filename, A)
         return (A, I, size)
     
@@ -122,7 +122,7 @@ class CFDSimulator(BaseSimulator):
         b_cache_filename = "cache/bp-%d-%d-%f%s.npz" % (self.n, self.m, self.h, self.get_boundaries_hash())
         if os.path.isfile(A_cache_filename) and os.path.isfile(b_cache_filename):
             A = self.load_sparse_csr(A_cache_filename)
-            b = self.load_sparse_csr(b_cache_filename)
+            b = np.array(self.load_sparse_csr(b_cache_filename).todense()).reshape(self.size)
             return (A,b)
         A = M.tolil()
         b = np.ones(self.size)
@@ -157,9 +157,8 @@ class CFDSimulator(BaseSimulator):
                         if self.boundary_right(i,j):
                             A[s,s + columns] = 1
                             A[s,s - columns] = 1
-        A = A.tocsr()
         self.save_sparse_csr(A_cache_filename, A)
-        self.save_sparse_csr(b_cache_filename, A)
+        self.save_sparse_csr(b_cache_filename, scipy.sparse.csr_matrix(b.copy()))
         return (A, b)
 
     def pressure_boundaries(self, c):
@@ -172,8 +171,8 @@ class CFDSimulator(BaseSimulator):
         by_cache_filename = "cache/bv_y-%d-%d-%f%s.npz" % (self.n, self.m, self.h, self.get_boundaries_hash())
         if os.path.isfile(A_cache_filename) and os.path.isfile(bx_cache_filename) and os.path.isfile(by_cache_filename):
             A = self.load_sparse_csr(A_cache_filename)
-            bx = self.load_sparse_csr(bx_cache_filename)
-            by = self.load_sparse_csr(by_cache_filename)
+            bx = np.array(self.load_sparse_csr(bx_cache_filename).todense()).reshape(self.size)
+            by = np.array(self.load_sparse_csr(by_cache_filename).todense()).reshape(self.size)
             return (A,bx,by)
         A = M.copy()
         b_x = np.ones(self.size)
@@ -252,18 +251,18 @@ class CFDSimulator(BaseSimulator):
         row_step = int(self.n/scale) + 1
         column_step = int(self.m / scale) + 1
         step = int(self.size/scale**2) + 1
-        b_normal = b.reshape(self.n, self.m)
-        mark_x = np.zeros([self.n, self.m])
+        b_normal = b.reshape(int(self.n), int(self.m))
+        mark_x = np.zeros([int(self.n), int(self.m)])
         mark_x[:,::column_step].fill(1)
-        mark_y = np.zeros([self.n, self.m])
+        mark_y = np.zeros([int(self.n), int(self.m)])
         mark_y[::row_step, :].fill(1)
         condition = np.logical_and(mark_x,mark_y)
 
         c = b_normal[condition]
 
         #A4D = A.reshape([self.n, self.m, self.n, self.m])
-        B = A[cond]
-        B = scipy.sparse.csr_matrix(B.reshape([scale**2, scale**2]))
+        B = A[cond].todense()
+        B = B.reshape([scale**2, scale**2])
         #B = A[0:self.n:row_step, 0:self.m:column_step, 0:self.n:row_step, 0:self.m:column_step].reshape([100, 100])
         return (B, c)
 
@@ -315,18 +314,19 @@ class CFDSimulator(BaseSimulator):
 
     def poisson(self, A, w):
         #S = A * scipy.sparse.identity(A.shape[0])
-        S = scipy.sparse.tril(A)
+        S = np.tril(A)
         # T = S - A
 
         # S = np.tril(A)
         T = S - A
-        self.logger.print_vector("S: ", S.todense())
         # B = scipy.sparse.linalg.inv(S).dot(T)
         # el, ev = scipy.sparse.linalg.eigs(B)
         N = A.shape[0]
         p = np.zeros(N)
+        w = np.array(w).reshape(N)
         for i in range(40):
-            p = scipy.sparse.linalg.spsolve(S, w + T.dot(p))
+            Tp = np.array(T.dot(p)).reshape(N)
+            p = np.linalg.solve(S, w + Tp)
         return p
 
     def projection(self, w3, dt):
@@ -351,7 +351,7 @@ class CFDSimulator(BaseSimulator):
         p_ = self.poisson(M_, c_)
         #p = p_.reshape(int(self.n/self.h), int(self.m/self.h))
         # Set boundaries back 
-        p_ = p_.reshape(10,10)
+        p_ = p_.reshape(scale,scale)
         
         p = self.scale_up(p_, scale=scale)
         self.rescale_boundaries()
