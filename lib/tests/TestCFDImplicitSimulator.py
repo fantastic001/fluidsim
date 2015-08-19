@@ -138,3 +138,42 @@ class TestCFDImplicitSimulator(unittest.TestCase):
         u[:,:,1] = size/2 - y
         res = simulator.diffusion(u, dt)
         nptest.assert_allclose(res[1:size // 2, 1:-1, 0], res[size-2:(size // 2)-1:-1, 1:-1, 0], atol=0.01, rtol=0.001)
+
+    
+    def test_step_blank(dt):
+        size = 100
+        
+        dt = 0.1
+        k = 1e-06
+        y,x = np.mgrid[0:size, 0:size]
+        r = 5
+        b = np.zeros([size, size]).astype(bool)
+        v = np.zeros([size, size, 2])
+        v[:, 0:0.4*size, 0] = np.linspace(size // 10, 0, 40)
+        simulator = CFDImplicitSimulator(np.zeros([size, size]), v, b, k)
+
+        # after 200 iterations, we have to have symmetry
+        for iteration in range(200):
+            simulator.step(dt)
+        res = simulator.velocities
+        nptest.assert_allclose(res[1:size // 2, 1:-1, 0], res[size-2:(size // 2)-1:-1, 1:-1, 0])
+        nptest.assert_allclose(res[1:size // 2, 1:-1, 1], -res[size-2:(size // 2)-1:-1, 1:-1, 1])
+
+    def test_step_circle(self):
+        size = 100
+        
+        dt = 0.1
+        k = 1e-06
+        y,x = np.mgrid[0:size, 0:size]
+        r = 5
+        b = (x - 0.495*size)**2 + (y - 0.495*size)**2 <= r**2
+        v = np.zeros([size, size, 2])
+        v[:, 0:0.4*size, 0] = np.linspace(size // 10, 0, 40)
+        simulator = CFDImplicitSimulator(np.zeros([size, size]), v, b, k)
+
+        # after 200 iterations, we have to have symmetry
+        for iteration in range(200):
+            simulator.step(dt)
+        res = simulator.velocities
+        nptest.assert_allclose(res[1:size // 2, 1:-1, 0], res[size-2:(size // 2)-1:-1, 1:-1, 0])
+        nptest.assert_allclose(res[1:size // 2, 1:-1, 1], -res[size-2:(size // 2)-1:-1, 1:-1, 1])
