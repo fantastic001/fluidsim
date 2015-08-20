@@ -268,10 +268,10 @@ class CFDSimulator(BaseSimulator):
 
     def scale_up(self, p, scale=10):
         p = p.reshape(scale, scale)
-        x = np.linspace(0, self.m, scale)
-        y = np.linspace(0, self.n, scale)
+        x = np.linspace(0, self.m-1, scale)
+        y = np.linspace(0, self.n-1, scale)
         func = scipy.interpolate.RectBivariateSpline(x,y, p)
-        return func(np.linspace(0, self.m, self.m), np.linspace(0, self.n, self.n))
+        return func(np.linspace(0, self.m-1, self.m), np.linspace(0, self.n-1, self.n))
     
     def scale_down_field(self, b, scale=10):
         row_step = int(self.n/scale) + 1
