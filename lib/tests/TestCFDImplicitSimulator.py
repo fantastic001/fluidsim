@@ -152,8 +152,8 @@ class TestCFDImplicitSimulator(unittest.TestCase):
         v[:, 0:0.4*size, 0] = np.linspace(size // 10, 0, 40)
         simulator = CFDImplicitSimulator(np.zeros([size, size]), v, b, k)
 
-        # after 200 iterations, we have to have symmetry
-        for iteration in range(200):
+        # after 5 iterations, we have to have symmetry
+        for iteration in range(5):
             simulator.step(dt)
         res = simulator.velocities
         nptest.assert_allclose(res[1:size // 2, 1:-1, 0], res[size-2:(size // 2)-1:-1, 1:-1, 0])
@@ -171,8 +171,8 @@ class TestCFDImplicitSimulator(unittest.TestCase):
         v[:, 0:0.4*size, 0] = np.linspace(size // 10, 0, 40)
         simulator = CFDImplicitSimulator(np.zeros([size, size]), v, b, k)
 
-        # after 200 iterations, we have to have symmetry
-        for iteration in range(200):
+        # after 5 iterations, we have to have symmetry
+        for iteration in range(5):
             simulator.step(dt)
         res = simulator.velocities
         nptest.assert_allclose(res[1:size // 2, 1:-1, 0], res[size-2:(size // 2)-1:-1, 1:-1, 0])

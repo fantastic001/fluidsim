@@ -19,6 +19,11 @@ class TestCFDSimulator(unittest.TestCase):
         self.densities.fill(1.0)
         self.simulator = LBMSimulator(self.densities, self.velocities, self.boundaries, 3.5)
         """
+    
+    def test_start(self):
+        simulator = CFDSimulator(np.zeros([10, 10]), np.zeros([10,10,2]), np.zeros([10,10]), 0.0001)
+        self.assertEqual(simulator.A.shape, (100, 100))
+        self.assertEqual(simulator.cond.shape, (100, 100))
 
     def test_gradient(self):
         v0 = np.zeros([100, 100, 2])
