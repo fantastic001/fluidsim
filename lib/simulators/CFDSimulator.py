@@ -261,8 +261,11 @@ class CFDSimulator(BaseSimulator):
         c = b_normal[condition]
 
         #A4D = A.reshape([self.n, self.m, self.n, self.m])
-        B = A[cond].todense()
-        B = B.reshape([scale**2, scale**2])
+        B = None 
+        if scale == 10:
+            B = self.Ap_scaled
+        else:
+            B = A[cond].todense().reshape([scale**2, scale**2])
         #B = A[0:self.n:row_step, 0:self.m:column_step, 0:self.n:row_step, 0:self.m:column_step].reshape([100, 100])
         return (B, c)
 
@@ -392,8 +395,6 @@ class CFDSimulator(BaseSimulator):
         
         self.non_boundaries = np.ones([int(self.n), int(self.m)]) - self.boundaries
 
-        self.cond = self.get_scaling_condition()
-
         self.forces = np.zeros([int(self.n/self.h), int(self.m/self.h), 2]) # Will be removed and modeled differently
         # Set forces :)))
         #for fi in range(int(self.n/self.h)):
@@ -413,6 +414,12 @@ class CFDSimulator(BaseSimulator):
         self.bmap = np.zeros([int(self.n/self.h), int(self.m/self.h)])
         self.iteration = 0
         self.Ap, self.bp = self.get_pressure_laplacian_operator(self.A)
+        
+        self.cond = self.get_scaling_condition()
+        self.Ap_scaled = None
+        if int(self.n) == int(self.m) == 100:
+            self.Ap_scaled = self.Ap[self.cond].todense().reshape([100, 100])
+        
         self.Av, self.bv_x, self.bv_y = self.get_velocity_laplacian_operator(self.A)
     
     def finish(self):
