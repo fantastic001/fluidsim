@@ -48,6 +48,7 @@ domain_router = Router()
 domain_router.register(blank, "blank")
 domain_router.register(circle_center, "circle")
 domain_router.register(square_center, "square")
+domain_router.register(slide, "slide")
 
 velocity_router = Router()
 velocity_router.register(linear_velocity, "linear")

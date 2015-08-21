@@ -12,3 +12,8 @@ def square_center(x,y,n,m):
 
 def blank(x,y,n,m):
     return 0.0
+
+def slide(x,y,n,m):
+    if 45 <= x and x <= 54 and y <= 45 and y >= 54:
+        return 1.0
+    return 0.0
