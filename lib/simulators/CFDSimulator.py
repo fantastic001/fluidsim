@@ -395,7 +395,8 @@ class CFDSimulator(BaseSimulator):
         
         self.non_boundaries = np.ones([int(self.n), int(self.m)]) - self.boundaries
 
-        self.forces = np.zeros([int(self.n/self.h), int(self.m/self.h), 2]) # Will be removed and modeled differently
+        self.forces = 10*self.velocities 
+        self.velocities.fill(0)
         # Set forces :)))
         #for fi in range(int(self.n/self.h)):
         #    self.forces[fi, :, 0] = np.linspace(100, 0, self.m/self.h)
@@ -486,7 +487,7 @@ class CFDSimulator(BaseSimulator):
         
         self.logger.print_vector("divergence error", np.abs(self.compute_divergence(self.velocities, self.h, self.h)).max())
 
-        self.forces.fill(0)
+        #self.forces.fill(0)
         self.logger.print_vector("Substance sum: ", self.densities.sum())
         self.logger.print_vector("Substance: ", self.densities)
         self.iteration += 1
