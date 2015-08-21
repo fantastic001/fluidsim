@@ -21,7 +21,7 @@ class FieldAnimator(BaseAnimator):
         n,m = p.shape
         f = 100*v
         mat = np.zeros([n,m,3])
-        plt.quiver(v[::10,::10, 0], v[::10,::10,1], scale=self.scale)
+        plt.quiver(v[::11,::11, 0], v[::11,::11,1], scale=self.scale)
         plt.savefig(self.target_path + "/field-%d.png" % t)
         plt.clf()
 
