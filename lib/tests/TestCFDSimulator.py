@@ -11,19 +11,14 @@ import numpy.testing as nptest
 class TestCFDSimulator(unittest.TestCase):
     
     def setUp(self):
-        """
-        self.boundaries = np.zeros([100, 100])
-        self.boundaries.fill(False)
-        self.velocities = np.zeros([100, 100, 2])
-        self.densities = np.zeros([100, 100])
-        self.densities.fill(1.0)
-        self.simulator = LBMSimulator(self.densities, self.velocities, self.boundaries, 3.5)
-        """
-    
+        self.zeros10 = np.zeros([10,10])
+        self.zeros100 = np.zeros([100,100])
+        self.zeros102 = np.zeros([10,10,2])
+        self.zeros1002 = np.zeros([100,100,2])
+
     def test_start(self):
         simulator = CFDSimulator(np.zeros([10, 10]), np.zeros([10,10,2]), np.zeros([10,10]), 0.0001)
         self.assertEqual(simulator.A.shape, (100, 100))
-        self.assertEqual(simulator.cond.shape, (100, 100))
 
     def test_gradient(self):
         v0 = np.zeros([100, 100, 2])
@@ -153,7 +148,58 @@ class TestCFDSimulator(unittest.TestCase):
         res = A.dot(u.reshape(size))
         expected[:,:] = 2*x**2 + 2*y**2
         nptest.assert_array_almost_equal(res.reshape(n,m)[1:-1,1:-1], expected[1:-1,1:-1])
+    
+    def test_pressure_laplacian_operator(self):
+        simulator = CFDSimulator(np.zeros([10,10]),np.zeros([10,10, 2]),np.zeros([10,10]),1)
+        n,m = int(10/simulator.h), int(10/simulator.h)
+        # construct grid first 
+        y, x = np.mgrid[0:10:simulator.h, 0:10:simulator.h]
+        u = np.zeros([int(10/simulator.h), int(10/simulator.h)])
+        expected = np.zeros([int(10/simulator.h),int(10/simulator.h)])
+        size = n*m
+        A, c = simulator.get_pressure_laplacian_operator()
 
+        u[:,:] = 100
+        res = A.dot(u.reshape(size))
+        expected[:,:] = 0
+        nptest.assert_array_almost_equal(res.reshape(n,m)[1:-1,1:-1], expected[1:-1,1:-1])
+
+        u[:,:] = x
+        res = A.dot(u.reshape(size))
+        expected[:,:] = 0
+        nptest.assert_array_almost_equal(res.reshape(n,m)[1:-1,1:-1], expected[1:-1, 1:-1])
+        
+        u[:,:] = y
+        res = A.dot(u.reshape(size))
+        expected[:,:] = 0
+        nptest.assert_array_almost_equal(res.reshape(n,m)[1:-1,1:-1], expected[1:-1,1:-1])
+
+        u[:,:] = x**2
+        res = A.dot(u.reshape(size))
+        expected[:,:] = 2
+        nptest.assert_array_almost_equal(res.reshape(n,m)[1:-1,1:-1], expected[1:-1,1:-1])
+        
+        u[:,:] = y**2
+        res = A.dot(u.reshape(size))
+        expected[:,:] = 2
+        nptest.assert_array_almost_equal(res.reshape(n,m)[1:-1,1:-1], expected[1:-1,1:-1])
+        
+        u[:,:] = x*y
+        res = A.dot(u.reshape(size))
+        expected[:,:] = 0
+        nptest.assert_array_almost_equal(res.reshape(n,m)[1:-1,1:-1], expected[1:-1,1:-1])
+        
+        u[:,:] = x**2 + y**2
+        res = A.dot(u.reshape(size))
+        expected[:,:] = 4
+        nptest.assert_array_almost_equal(res.reshape(n,m)[1:-1,1:-1], expected[1:-1,1:-1])
+        
+        u[:,:] = x**2 * y**2
+        res = A.dot(u.reshape(size))
+        expected[:,:] = 2*x**2 + 2*y**2
+        nptest.assert_array_almost_equal(res.reshape(n,m)[1:-1,1:-1], expected[1:-1,1:-1])
+        
+    
     def test_projection(self):
         # WARNING: This test assumes correct compute_divergence method
         # TODO Fix this to be independent
@@ -230,3 +276,34 @@ class TestCFDSimulator(unittest.TestCase):
         simulator = CFDSimulator(p,v,b,k)
         simulator.scale_boundaries(scale=scale)
         nptest.assert_array_almost_equal(simulator.boundaries, e)
+        
+        y,x = np.mgrid[0:dim, 0:dim]
+        r = 5
+        b = (x - 0.495*dim)**2 + (y - 0.495*dim)**2 <= r**2
+        e = expected.copy()
+        e[[4, 4, 5, 5], [4, 5, 4, 5]] = True
+        simulator = CFDSimulator(p,v,b,k)
+        simulator.scale_boundaries(scale=scale)
+        nptest.assert_array_almost_equal(simulator.boundaries, e)
+    
+    def test_scale_down_field(self):
+        u = self.zeros100.copy()
+        simulator = CFDSimulator(self.zeros100, self.zeros1002, self.zeros100, 0.001) 
+
+        u[11,11] = 5
+        expected = self.zeros10.copy()
+        expected[1,1] = 5
+        res = simulator.scale_down_field(u)
+        nptest.assert_allclose(res, expected)
+
+    def test_scale_up_field(self):
+        u = self.zeros10.copy()
+        simulator = CFDSimulator(self.zeros100, self.zeros1002, self.zeros100, 0.001) 
+
+        u[1,1] = 5
+        expected = self.zeros100.copy()
+        expected[:,:] = 1e-06
+        expected[11,11] = 5
+        res = simulator.scale_up_field(u)
+        nptest.assert_allclose(res[11, 11], expected[11, 11], atol=1e-6)
+
