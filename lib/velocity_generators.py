@@ -32,4 +32,7 @@ def half_constant_velocity_small(x,y,n,m):
         return np.array([0.1,0])
     return np.array([0,0])
 
-
+def narrow_stream_velocity(x,y,n,m):
+    if x <= 40 and y >= 40 and y <= 60:
+        return np.array([10, 0])
+    return np.array([0,0])
