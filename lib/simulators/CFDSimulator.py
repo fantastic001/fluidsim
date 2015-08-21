@@ -117,17 +117,12 @@ class CFDSimulator(BaseSimulator):
         self.save_sparse_csr(cache_filename, A)
         return (A, I, size)
     
-    def get_pressure_laplacian_operator(self, M):
-        A_cache_filename = "cache/Ap-%d-%d-%f%s.npz" % (self.n, self.m, self.h, self.get_boundaries_hash())
-        b_cache_filename = "cache/bp-%d-%d-%f%s.npz" % (self.n, self.m, self.h, self.get_boundaries_hash())
-        if os.path.isfile(A_cache_filename) and os.path.isfile(b_cache_filename):
-            A = self.load_sparse_csr(A_cache_filename)
-            b = np.array(self.load_sparse_csr(b_cache_filename).todense()).reshape(self.size)
-            return (A,b)
-        A = M.tolil()
-        b = np.ones(self.size)
-        columns = int(self.m/self.h)
-        rows = int(self.n/self.h)
+    def get_pressure_laplacian_operator(self, scale=10):
+        size = scale**2
+        b = np.ones(size)
+        A = np.zeros([size, size])
+        columns = scale
+        rows = scale
         for i in range(rows):
             for j in range(columns):
                 s = columns * i + j
@@ -157,13 +152,18 @@ class CFDSimulator(BaseSimulator):
                         if self.boundary_right(i,j):
                             A[s,s + columns] = 1
                             A[s,s - columns] = 1
-        self.save_sparse_csr(A_cache_filename, A)
-        self.save_sparse_csr(b_cache_filename, scipy.sparse.csr_matrix(b.copy()))
+                    else:
+                        A[s,s] = -4
+                        A[s,s+1] = 1
+                        A[s,s-1] = 1 
+                        A[s,s+columns] = 1 
+                        A[s,s-columns] = 1
         return (A, b)
 
     def pressure_boundaries(self, c):
-        b = c*self.bp
-        return (self.Ap,b)
+        Ap, bp = self.get_pressure_laplacian_operator()
+        b = c*bp
+        return (Ap,b)
     
     def get_velocity_laplacian_operator(self, M):
         A_cache_filename = "cache/Av-%d-%d-%f%s.npz" % (self.n, self.m, self.h, self.get_boundaries_hash())
@@ -271,25 +271,33 @@ class CFDSimulator(BaseSimulator):
 
     def scale_up(self, p, scale=10):
         p = p.reshape(scale, scale)
-        x = np.linspace(0, self.m-1, scale)
-        y = np.linspace(0, self.n-1, scale)
-        func = scipy.interpolate.RectBivariateSpline(x,y, p)
-        return func(np.linspace(0, self.m-1, self.m), np.linspace(0, self.n-1, self.n))
+        ax = np.linspace(0, self.m-1, scale)
+        ay = np.linspace(0, self.n-1, scale)
+        func = scipy.interpolate.RectBivariateSpline(ax,ay, p)
+        
+        y,x = np.mgrid[0:int(self.n), 0:int(self.m)]
+
+        return func.ev(y,x)
     
     def scale_down_field(self, b, scale=10):
         row_step = int(self.n/scale) + 1
         column_step = int(self.m / scale) + 1
-        step = int(self.size/scale**2)
-        b_normal = b.reshape(self.n, self.m)
-        c = b_normal[0:self.n:row_step, 0:self.m:column_step]
+        b_normal = b.reshape(int(self.n), int(self.m))
+        mark_x = np.zeros([int(self.n), int(self.m)]).astype(bool)
+        mark_x[:,::column_step] = True
+        mark_y = np.zeros([int(self.n), int(self.m)]).astype(bool)
+        mark_y[::row_step, :] = True
+        condition = np.logical_and(mark_x,mark_y)
+
+        c = b_normal[condition].reshape([scale, scale])
         return c
 
     def scale_up_field(self, p, scale=10):
         p = p.reshape(scale, scale)
-        x = np.linspace(0, self.m, scale)
-        y = np.linspace(0, self.n, scale)
-        func = scipy.interpolate.RectBivariateSpline(x,y, p)
-        return func(np.linspace(0, self.m, self.m), np.linspace(0, self.n, self.n))
+        ax = np.linspace(0, self.m-1, scale)
+        ay = np.linspace(0, self.n-1, scale)
+        func = scipy.interpolate.RectBivariateSpline(ax,ay, p)
+        return func.ev(self.y, self.x)
     
     def scale_boundaries(self, scale=10):
         self.tmp_boundaries = self.boundaries.copy()
@@ -316,6 +324,7 @@ class CFDSimulator(BaseSimulator):
         self.boundaries = self.tmp_boundaries.copy()
 
     def poisson(self, A, w):
+        """
         #S = A * scipy.sparse.identity(A.shape[0])
         S = np.tril(A)
         # T = S - A
@@ -330,35 +339,25 @@ class CFDSimulator(BaseSimulator):
         for i in range(40):
             Tp = np.array(T.dot(p)).reshape(N)
             p = np.linalg.solve(S, w + Tp)
+        """
+        p = np.linalg.solve(A, w)
         return p
 
     def projection(self, w3, dt):
         scale = 10
         div_w3 = self.compute_divergence(w3, self.h, self.h, edge_order=1)
         div_w3_reshaped = div_w3.reshape(self.size)
-        M, c = self.pressure_boundaries(div_w3_reshaped)
-        self.logger.print_vector("Pressure laplacian before scaling: ", M.todense())
-        #if (M.todense() == M.todense().transpose()).all():
-        #    print("M is symmetric")
-        #diag_M = M * scipy.sparse.identity(M.shape[0])
-        #P = scipy.sparse.linalg.inv(diag_M).dot(M)
-        
-        #p_ = scipy.sparse.linalg.spsolve(M, c)
-        #np.savetxt("A.csv", M.todense(), delimiter=",")
-        #np.savetxt("b.csv", c, delimiter=",")
-        #exit(0)
+        div_w3_scaled = self.scale_down_field(div_w3_reshaped)
         self.scale_boundaries(scale=scale)
-        M_, c_ = self.scale_down(M, c, scale=scale)
-        self.logger.print_vector("Scaled laplacian operator: ", M_)
-        self.logger.print_vector("Scaled div(w3) operator: ", c_)
-        p_ = self.poisson(M_, c_)
+        M, c = self.pressure_boundaries(div_w3_scaled.reshape(scale**2))
+        p = self.poisson(M, c)
         #p = p_.reshape(int(self.n/self.h), int(self.m/self.h))
         # Set boundaries back 
-        p_ = p_.reshape(scale,scale)
+        p = p.reshape(scale,scale)
         
-        p = self.scale_up(p_, scale=scale)
+        p = self.scale_up_field(p, scale=scale)
         self.rescale_boundaries()
-        p_ = self.reset_edge_pressure(p_)
+        p = self.reset_edge_pressure(p)
         grad_p = self.compute_gradient(p, self.h, self.h, edge_order=1)
         self.logger.print_vector("p = ", p)
         self.logger.print_vector("grad p_x = ", grad_p[:,:,0])
@@ -394,32 +393,17 @@ class CFDSimulator(BaseSimulator):
         self.n, self.m = (self.velocities.shape[0]*self.h, self.velocities.shape[1]*self.h)
         
         self.non_boundaries = np.ones([int(self.n), int(self.m)]) - self.boundaries
-
+        
         self.forces = 10*self.velocities 
         self.velocities.fill(0)
         # Set forces :)))
         #for fi in range(int(self.n/self.h)):
         #    self.forces[fi, :, 0] = np.linspace(100, 0, self.m/self.h)
         
-        self.y,self.x = np.mgrid[0:self.n:self.h, 0:self.m:self.h]
-        self.ax = np.arange(0, self.m, self.h)
-        self.ay = np.arange(0, self.n, self.h)
-
-        # set path 
-        self.path = np.zeros([int(self.n / self.h), int(self.m / self.h), 2])
-        for py in self.ay:
-            for px in self.ax:
-                self.path[int(py/self.h), int(px/self.h), 0] = px
-                self.path[int(py/self.h), int(px/self.h), 1] = py
+        self.y, self.x = np.mgrid[0:int(self.n), 0:int(self.m)]
         self.A, self.I, self.size = self.get_laplacian_operator()
         self.bmap = np.zeros([int(self.n/self.h), int(self.m/self.h)])
         self.iteration = 0
-        self.Ap, self.bp = self.get_pressure_laplacian_operator(self.A)
-        
-        self.cond = self.get_scaling_condition()
-        self.Ap_scaled = None
-        if int(self.n) == int(self.m) == 100:
-            self.Ap_scaled = self.Ap[self.cond].todense().reshape([100, 100])
         
         self.Av, self.bv_x, self.bv_y = self.get_velocity_laplacian_operator(self.A)
     
@@ -481,7 +465,7 @@ class CFDSimulator(BaseSimulator):
         self.logger.print_vector("w4 x error:", np.abs(w4[:,:,0]).max())
         self.logger.print_vector("w4 y error:", np.abs(w4[:,:,1]).max())
 
-        self.densities = self.advect_substance(self.velocities, self.densities, self.path, dt)
+        #self.densities = self.advect_substance(self.velocities, self.densities, self.path, dt)
         
         self.logger.print_vector("div v", self.compute_divergence(self.velocities, self.h, self.h))
         
