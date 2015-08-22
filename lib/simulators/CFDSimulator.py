@@ -357,7 +357,6 @@ class CFDSimulator(BaseSimulator):
         
         p = self.scale_up_field(p, scale=scale)
         self.rescale_boundaries()
-        p = self.reset_edge_pressure(p)
         grad_p = self.compute_gradient(p, self.h, self.h, edge_order=1)
         self.logger.print_vector("p = ", p)
         self.logger.print_vector("grad p_x = ", grad_p[:,:,0])
