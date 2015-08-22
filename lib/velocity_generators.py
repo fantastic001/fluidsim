@@ -42,3 +42,9 @@ def center_stream_velocity(x,y,n,m):
     v = np.array([x+1,y-0.495*n]) / np.sqrt(r2)
     F = 20/np.sqrt(r2)
     return F*v
+
+def down_stream_velocity(x,y,n,m):
+    r2 = (x + 1)**2 + (y-n)**2
+    v = np.array([x+1,y-n]) / np.sqrt(r2)
+    F = 20/np.sqrt(r2)
+    return F*v

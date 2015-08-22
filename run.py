@@ -51,6 +51,7 @@ domain_router.register(blank, "blank")
 domain_router.register(circle_center, "circle")
 domain_router.register(square_center, "square")
 domain_router.register(slide, "slide")
+domain_router.register(wing, "wing")
 
 velocity_router = Router()
 velocity_router.register(linear_velocity, "linear")
@@ -63,6 +64,8 @@ velocity_router.register(half_constant_velocity_small, "half_constant_small")
 velocity_router.register(half_constant_velocity, "half_constant")
 velocity_router.register(narrow_stream_velocity, "narrow_stream")
 velocity_router.register(center_stream_velocity, "center_stream")
+velocity_router.register(down_stream_velocity, "down_stream")
+
 animator_params = params.get("animator_params", {})
 
 animator_class = animator_router.route(params.get("animator", "speed"))
