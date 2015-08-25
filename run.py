@@ -41,6 +41,7 @@ animator_router.register(VelocityXAnimator, "velocity_x")
 animator_router.register(VelocityYAnimator, "velocity_y")
 animator_router.register(DivergenceAnimator, "divergence")
 animator_router.register(CurlAnimator, "curl")
+animator_router.register(PressureAnimator, "pressure")
 
 simulator_router = Router()
 simulator_router.register(LBMSimulator, "lbm")

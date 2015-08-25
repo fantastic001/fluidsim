@@ -393,6 +393,8 @@ class CFDSimulator(BaseSimulator):
         
         self.non_boundaries = np.ones([int(self.n), int(self.m)]) - self.boundaries
         
+        self.pressure = np.zeros([int(self.n/self.h), int(self.m/self.h)])
+
         self.forces = 10*self.velocities 
         self.velocities.fill(0)
         # Set forces :)))
