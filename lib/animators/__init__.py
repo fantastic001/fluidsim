@@ -8,3 +8,4 @@ from .VelocityXAnimator import *
 from .VelocityYAnimator import *
 from .DivergenceAnimator import * 
 from .CurlAnimator import * 
+from .PressureAnimator import * 
