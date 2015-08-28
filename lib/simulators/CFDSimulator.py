@@ -155,8 +155,8 @@ class CFDSimulator(BaseSimulator):
                     else:
                         A[s,s] = -4
                         A[s,s+1] = 1
-                        A[s,s-1] = 1 
-                        A[s,s+columns] = 1 
+                        A[s,s-1] = 1
+                        A[s,s+columns] = 1
                         A[s,s-columns] = 1
         return (A, b)
 
@@ -190,14 +190,38 @@ class CFDSimulator(BaseSimulator):
                     A[s,s] = 1
                     #b_x[s] = 0
                     #b_y[s] = 0
-                    if self.boundary_up(i,j) or self.boundary_down(i,j):
+                    if self.boundary_edge(i,j):
+                        b_x[s] = 0
                         b_y[s] = 0
+                        A[s,s] = -2
+                        if self.boundary_up(i,j):
+                            A[s,s+columns] = 1
+                        if self.boundary_left(i,j):
+                            A[s,s+1] = 1
+                        if self.boundary_right(i,j):
+                            A[s,s-1] = 1
+                        if self.boundary_down(i,j):
+                            A[s,s-columns] = 1
+                        continue
+                    if self.boundary_up(i,j) or self.boundary_down(i,j):
+                        A[s,s] = -1
+                        b_y[s] = 0
+                        if self.boundary_up(i,j):
+                            A[s,s+columns] = 1
+                        else:
+                            A[s,s-columns] = 1
                     if self.boundary_right(i,j) or self.boundary_left(i,j):
                         b_x[s] = 0
+                        A[s,s] = 1
+                        if self.boundary_left(i,j):
+                            A[s,s+1] = 1
+                        else:
+                            A[s,s-1] = 1
         return (A,b_x, b_y)
 
-    def velocity_boundaries(self, c_x, c_y):
-        return (self.Av, c_x*self.bv_x, c_y*self.bv_y)
+    def velocity_boundaries(self, c_x, c_y, dt=0.1):
+        Av, self.bv_x, self.bv_y = self.get_velocity_laplacian_operator(self.I - self.viscosity*dt*self.A)
+        return (Av, c_x*self.bv_x, c_y*self.bv_y)
     
     def reset_solid_velocities(self, v):
         w = v.copy()
@@ -345,19 +369,19 @@ class CFDSimulator(BaseSimulator):
 
     def projection(self, w3, dt):
         scale = 10
-        div_w3 = self.compute_divergence(w3, self.h, self.h, edge_order=1)
+        div_w3 = self.compute_divergence(w3, 0.5, 0.5, edge_order=1)
         div_w3_reshaped = div_w3.reshape(self.size)
         div_w3_scaled = self.scale_down_field(div_w3_reshaped)
         self.scale_boundaries(scale=scale)
         M, c = self.pressure_boundaries(div_w3_scaled.reshape(scale**2))
-        p = self.poisson(M, c)
+        p = self.poisson(M, 0.25*c)
         #p = p_.reshape(int(self.n/self.h), int(self.m/self.h))
         # Set boundaries back 
         p = p.reshape(scale,scale)
         
         p = self.scale_up_field(p, scale=scale)
         self.rescale_boundaries()
-        grad_p = self.compute_gradient(p, self.h, self.h, edge_order=1)
+        grad_p = self.compute_gradient(p, 0.5, 0.5, edge_order=1)
         self.logger.print_vector("p = ", p)
         self.logger.print_vector("grad p_x = ", grad_p[:,:,0])
         self.logger.print_vector("grad p_y = ", grad_p[:,:,1])
@@ -406,7 +430,7 @@ class CFDSimulator(BaseSimulator):
         self.bmap = np.zeros([int(self.n/self.h), int(self.m/self.h)])
         self.iteration = 0
         
-        self.Av, self.bv_x, self.bv_y = self.get_velocity_laplacian_operator(self.A)
+
     
     def finish(self):
         #plt.plot(np.diff(self.deltas))

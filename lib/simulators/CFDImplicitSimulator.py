@@ -15,7 +15,6 @@ class CFDImplicitSimulator(CFDSimulator):
 
     def advection(self, w1, dt):
         w2 = w1.copy()
-        
         psy = self.y - dt*w1[:, :, 1]
         psx = self.x - dt*w1[:, :, 0]
         ax = np.linspace(0, self.m-1, self.m)
@@ -36,8 +35,8 @@ class CFDImplicitSimulator(CFDSimulator):
         #scale = 10
         w2_x = w2[:,:,0].reshape(self.size)
         w2_y = w2[:,:,1].reshape(self.size)
-        M, c_x, c_y = self.velocity_boundaries(w2_x, w2_y)
-        L = self.I - (self.viscosity * dt)*M
+        #L = self.I - (self.viscosity * dt)*self.A
+        L, c_x, c_y = self.velocity_boundaries(w2_x, w2_y)
         #self.scale_boundaries(scale=scale)
         #L1, c_x = self.scale_down(L, c_x)
         #L2, c_y = self.scale_down(L, c_y)
@@ -57,7 +56,7 @@ class CFDImplicitSimulator(CFDSimulator):
         w3[:,:,0] = w30.reshape([int(self.n/self.h), int(self.m/self.h)])
         w3[:,:,1] = w31.reshape([int(self.n/self.h), int(self.m/self.h)])
 
-        return self.reset_solid_velocities(w3)
+        return w3
     
     def perform_advection(self, w1, dt):
         w2 = self.advection(w1, dt)
