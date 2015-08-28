@@ -29,36 +29,48 @@ class CFDSimulator(BaseSimulator):
     def compute_speed(self, v):
         return np.sqrt(v[:, :, 0]**2 + v[:, :, 1]**2)
     
-    def compute_gradient(self, a, dx, dy, edge_order=2):
-        dy, dx = np.gradient(a, dy, dx, edge_order=edge_order)
+    def compute_gradient(self, a, dx=1, dy=1, edge_order=2, delta_x=1, delta_y=1):
+        """
+        if delta_x < dx or delta_y < dy, field is interpolated and then gradient is computed
+        """
+        if delta_x < dx or delta_y < dy:
+            n,m = a.shape
+            ax = np.arange(0, m, dx)
+            ay = np.arange(0, n, dy)
+            func = scipy.interpolate.RectBivariateSpline(ax,ay, a)
+            y,x = np.mgrid[0:n:dy, 0:m:dx]
+            dx = (func.ev(y,x + delta_x) - func.ev(y, x - delta_x)) / delta_x
+            dy = (func.ev(y + delta_y, x) - func.ev(y - delta_y, x)) / delta_y
+        else:
+            dy, dx = np.gradient(a, dy, dx, edge_order=edge_order)
         grad = np.zeros([a.shape[0], a.shape[1], 2])
         grad[:,:,0] = dx 
         grad[:,:,1] = dy
         return grad
 
-    def compute_divergence(self, f, dx, dy, edge_order=2):
+    def compute_divergence(self, f, dx=1, dy=1, edge_order=2, delta_x=1, delta_y=1):
         p = f[:,:,0]
         q = f[:,:,1]
-        dp = self.compute_gradient(p, dx, dy, edge_order=edge_order) 
-        dq = self.compute_gradient(q, dx, dy, edge_order=edge_order)
+        dp = self.compute_gradient(p, dx, dy, edge_order=edge_order, delta_x=delta_x, delta_y=delta_y) 
+        dq = self.compute_gradient(q, dx, dy, edge_order=edge_order, delta_x=delta_x, delta_y=delta_y)
         dpdx = dp[:,:,0]
         dqdy = dq[:,:,1]
         return dpdx + dqdy
     
-    def compute_laplacian(self, f, dx, dy):
+    def compute_laplacian(self, f, dx=1, dy=1, delta_x=1, delta_y=1):
         p = f[:,:,0]
         q = f[:,:,1]
-        dp = self.compute_gradient(p, dx, dy)
-        dq = self.compute_gradient(q, dx, dy)
+        dp = self.compute_gradient(p, dx, dy, delta_x=delta_x, delta_y=delta_y)
+        dq = self.compute_gradient(q, dx, dy, delta_x=delta_x, delta_y=delta_y)
         dpdx = dp[:,:,0]
         dpdy = dp[:,:,1]
         dqdx = dq[:,:,0]
         dqdy = dq[:,:,1]
 
-        dpxx = self.compute_gradient(dpdx, dx, dy)[:,:,0]
-        dpyy = self.compute_gradient(dpdy, dx, dy)[:,:,1]
-        dqxx = self.compute_gradient(dqdx, dx, dy)[:,:,0]
-        dqyy = self.compute_gradient(dqdy, dx, dy)[:,:,1]
+        dpxx = self.compute_gradient(dpdx, dx, dy, delta_x=delta_x, delta_y=delta_y)[:,:,0]
+        dpyy = self.compute_gradient(dpdy, dx, dy, delta_x=delta_x, delta_y=delta_y)[:,:,1]
+        dqxx = self.compute_gradient(dqdx, dx, dy, delta_x=delta_x, delta_y=delta_y)[:,:,0]
+        dqyy = self.compute_gradient(dqdy, dx, dy, delta_x=delta_x, delta_y=delta_y)[:,:,1]
         
         res = f.copy()
         res[:,:,0] = dpxx + dpyy
@@ -369,7 +381,7 @@ class CFDSimulator(BaseSimulator):
 
     def projection(self, w3, dt):
         scale = 10
-        div_w3 = self.compute_divergence(w3, 0.5, 0.5, edge_order=1)
+        div_w3 = self.compute_divergence(w3, delta_x=0.5, delta_y=0.5, edge_order=1)
         div_w3_reshaped = div_w3.reshape(self.size)
         div_w3_scaled = self.scale_down_field(div_w3_reshaped)
         self.scale_boundaries(scale=scale)
@@ -381,7 +393,7 @@ class CFDSimulator(BaseSimulator):
         
         p = self.scale_up_field(p, scale=scale)
         self.rescale_boundaries()
-        grad_p = self.compute_gradient(p, 0.5, 0.5, edge_order=1)
+        grad_p = self.compute_gradient(p, delta_x=0.5, delta_y=0.5, edge_order=1)
         self.logger.print_vector("p = ", p)
         self.logger.print_vector("grad p_x = ", grad_p[:,:,0])
         self.logger.print_vector("grad p_y = ", grad_p[:,:,1])

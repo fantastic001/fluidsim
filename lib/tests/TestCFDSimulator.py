@@ -219,7 +219,7 @@ class TestCFDSimulator(unittest.TestCase):
         u[:,:,0] = x**2 + y**2
         u[:,:,1] = 2*x**2 + y**2
         w, p = simulator.projection(u, dt)
-        nptest.assert_allclose(simulator.compute_divergence(w, simulator.h, simulator.h), expected, atol=400, rtol=0.1)
+        nptest.assert_allclose(simulator.compute_divergence(w, simulator.h, simulator.h), expected, atol=1000, rtol=0.1)
 
         u[:,:,0] = x
         u[:,:,1] = y
