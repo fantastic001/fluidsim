@@ -48,6 +48,23 @@ class TestCFDSimulator(unittest.TestCase):
         nptest.assert_array_almost_equal(dfdy, 2*y, decimal=3)
         nptest.assert_array_almost_equal(dfdx, 2*x, decimal=3)
 
+        # test with delta_x and delta_y
+        y,x = np.mgrid[0:100:0.1, 0:100:0.1]
+        f = x + y**2
+        grad = simulator.compute_gradient(f, dx=0.1, dy=0.1, delta_x=0.05, delta_y=0.05)
+        dfdx = grad[:,:,0]
+        dfdy = grad[:,:,1]
+        nptest.assert_array_almost_equal(dfdy, 2*y, decimal=1, verbose=True)
+        nptest.assert_array_almost_equal(dfdx, np.ones(f.shape), verbose=True)
+        
+        y,x = np.mgrid[0:100:0.1, 0:100:0.1]
+        f = x**2 + y**2
+        grad = simulator.compute_gradient(f, dx=0.1, dy=0.1, delta_x=0.05, delta_y=0.05)
+        dfdx = grad[:,:,0]
+        dfdy = grad[:,:,1]
+        nptest.assert_array_almost_equal(dfdy[1:-1, 1:-1], 2*y[1:-1,1:-1], decimal=3, verbose=True)
+        nptest.assert_array_almost_equal(dfdx[1:-1, 1:-1], 2*x[1:-1,1:-1], decimal=3, verbose=True)
+
     def test_divergence(self):
         y,x = np.mgrid[0:100:0.1, 0:100:0.1]
         expected = np.zeros([x.shape[0], x.shape[1]])
