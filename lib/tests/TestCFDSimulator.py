@@ -135,6 +135,16 @@ class TestCFDSimulator(unittest.TestCase):
         expected[:,:] = 4*x + 8*y
         divergence = simulator.compute_divergence(f, 0.1, 0.1, delta_x=0.05, delta_y=0.05)
         nptest.assert_array_almost_equal(divergence[1:-1, 1:-1], expected[1:-1, 1:-1])
+        
+        y,x = np.mgrid[0:100, 0:100]
+        f = np.zeros([100,100, 2])
+        f[:,:,0] = 2*x**2
+        f[:,:,1] = 4*y**2
+        expected = 4*x + 8*y
+        divergence = simulator.compute_divergence(f, 1, 1, delta_x=0.5, delta_y=0.5)
+        nptest.assert_array_almost_equal(divergence[1:-1, 1:-1], expected[1:-1, 1:-1],
+            err_msg="Computing divergence with deltas does not work with scale h=1"
+        )
     
     def test_laplacian(self):
         y,x = np.mgrid[0:100:0.1, 0:100:0.1]
