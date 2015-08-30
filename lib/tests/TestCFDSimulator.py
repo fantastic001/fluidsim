@@ -261,65 +261,66 @@ class TestCFDSimulator(unittest.TestCase):
         # WARNING: This test assumes correct compute_divergence method
         # TODO Fix this to be independent
         dim = 100
-        simulator = CFDSimulator(np.zeros([dim,dim]),np.zeros([dim,dim, 2]),np.zeros([dim,dim]),0.001)
+        h = 1/dim
+        simulator = CFDSimulator(np.zeros([dim,dim]),np.zeros([dim,dim, 2]),np.zeros([dim,dim]),0.001, h=h)
         # construct grid first 
-        y, x = np.mgrid[0:dim:simulator.h, 0:dim:simulator.h]
-        u = np.zeros([int(dim/simulator.h), int(dim/simulator.h), 2])
-        expected = np.zeros([int(dim/simulator.h),int(dim/simulator.h)])
+        y, x = np.mgrid[0:1:simulator.h, 0:1:simulator.h]
+        u = np.zeros([int(dim), int(dim), 2])
+        expected = np.zeros([int(dim),int(dim)])
         dt = 0.1
 
-        u[:,:,0] = 1e+15
-        u[:,:,1] = 1e+15
+        u[:,:,0] = 1
+        u[:,:,1] = 1
         w, p = simulator.projection(u, dt)
-        nptest.assert_allclose(simulator.compute_divergence(w, delta_x=0.5, delta_y=0.5), expected, atol=1, rtol=0.1,
+        nptest.assert_allclose(simulator.compute_divergence(w), expected,
             err_msg="Not equal on constant field"
         )
         
-        u[:,:,0] = x**2 + y**2
-        u[:,:,1] = 2*x**2 + y**2
+        u[:,:,0] = (x**2 + y**2) / 10
+        u[:,:,1] = (2*x**2 + y**2)/10
         w, p = simulator.projection(u, dt)
-        grad_p = simulator.compute_gradient(p, delta_x=0.5, delta_y=0.5)
-        div_u = simulator.compute_divergence(u, delta_x=0.5, delta_y=0.5)
-        div_grad_p = simulator.compute_divergence(grad_p, delta_x=0.5, delta_y=0.5)
-        nptest.assert_allclose(div_u - div_grad_p, expected, atol=20, rtol=0.1, 
+        grad_p = simulator.compute_gradient(p)
+        div_u = simulator.compute_divergence(u)
+        div_grad_p = simulator.compute_divergence(grad_p)
+        nptest.assert_allclose(div_u - div_grad_p, expected, 
             err_msg="Not equal when computed divergence on each."
         )
         
-        u[:,:,0] = x**2 + y**2
-        u[:,:,1] = 2*x**2 + y**2
+        u[:,:,0] = (x**2 + y**2) / 10
+        u[:,:,1] = (2*x**2 + y**2) / 10
         w, p = simulator.projection(u, dt)
-        nptest.assert_allclose(simulator.compute_divergence(w, delta_x=0.5, delta_y=0.5), expected, atol=1000, rtol=0.1,
+        nptest.assert_allclose(simulator.compute_divergence(w), expected,
             err_msg="Not eqaul on whole for radial field"
         )
 
-        u[:,:,0] = x
-        u[:,:,1] = y
+        u[:,:,0] = x/10
+        u[:,:,1] = y/10
         w, p = simulator.projection(u, dt)
-        nptest.assert_allclose(simulator.compute_divergence(w, delta_x=0.5, delta_y=0.5), expected, atol=10, rtol=0.1,
+        nptest.assert_allclose(simulator.compute_divergence(w), expected,
             err_msg="Not equal on constant field"
         )
         
         # we expect symmatric response to symmetric input
-        u[:,:,0] = x
+        u[:,:,0] = x/10
         u[:,:,1] = 0
         w, p = simulator.projection(u, dt)
-        nptest.assert_allclose(w[0:dim // 2, :, 0], w[dim-1:(dim // 2)-1:-1, :, 0], atol=0.01, rtol=0.001,
+        nptest.assert_allclose(w[0:dim // 2, :, 0], w[dim-1:(dim // 2)-1:-1, :, 0],
             err_msg="Not symmetric on field <x, 0>"
         )
         
         u[:,:,0] = 0
-        u[:,:,1] = y
+        u[:,:,1] = y/10
         w, p = simulator.projection(u, dt)
-        nptest.assert_allclose(w[:, 0:dim // 2, 1], w[:, dim-1:(dim // 2)-1:-1, 1], atol=0.01, rtol=0.001,
+        nptest.assert_allclose(w[:, 0:dim // 2, 1], w[:, dim-1:(dim // 2)-1:-1, 1],
             err_msg="Not symmetric on field <0, y>"
         )
 
-        u[:,:,0] = 10 - x/10
+        u[:,:,0] = 0.1 - x/1000
         u[[0, -1], :, 0] = 0
         u[:, [0, -1], 0] = 0
         u[:,:,1] = 0
         w, p = simulator.projection(u, dt)
-        nptest.assert_allclose(w[0:dim // 2, :, 0], w[dim-1:(dim // 2)-1:-1, :, 0], atol=0.01, rtol=0.001,
+        nptest.assert_allclose(w[0:dim // 2, :, 0], w[dim-1:(dim // 2)-1:-1, :, 0],
             err_msg="Not symmetric on real field"
         )
 
