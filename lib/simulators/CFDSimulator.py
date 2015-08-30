@@ -35,12 +35,43 @@ class CFDSimulator(BaseSimulator):
         """
         if delta_x < dx or delta_y < dy:
             n,m = a.shape
+            n *= dy
+            m *= dx
             ax = np.arange(0, m, dx)
             ay = np.arange(0, n, dy)
-            func = scipy.interpolate.RectBivariateSpline(ax,ay, a)
+            func = scipy.interpolate.RectBivariateSpline(ax,ay, a, kx=1, ky=1)
             y,x = np.mgrid[0:n:dy, 0:m:dx]
-            dx = (func.ev(y,x + delta_x) - func.ev(y, x - delta_x)) / delta_x
-            dy = (func.ev(y + delta_y, x) - func.ev(y - delta_y, x)) / delta_y
+            dx = (func.ev(y,x + delta_x) - func.ev(y, x - delta_x)) / (2*delta_x)
+            dy = (func.ev(y + delta_y, x) - func.ev(y - delta_y, x)) / (2*delta_y)
+            f = func.ev
+            xu = x[0, :]
+            xd = x[-1, :]
+            xl = x[:, 0]
+            xr = x[:, -1]
+            yu = y[0, :]
+            yd = y[-1, :]
+            yl = y[:, 0]
+            yr = y[:, -1]
+            if edge_order == 2:
+                #dx[0, :] = (-f(yu, xu + 2*delta_x) + 4*f(yu, xu + delta_x) -3*f(yu,xu)) / (2*delta_x)
+                dy[0, :] = (-f(yu + 2*delta_y, xu) + 4*f(yu + delta_y, xu) -3*f(yu,xu)) / (2*delta_y)
+                dx[:, 0] = (-f(yl, xl + 2*delta_x) + 4*f(yl, xl + delta_x) -3*f(yl,xl)) / (2*delta_x)
+                #dy[:, 0] = (-f(yl + 2*delta_y, xl) + 4*f(yl + delta_y, xl) -3*f(yl,xl)) / (2*delta_y)
+                
+                #dx[-1, :] = (-f(yd, xd - 2*delta_x) + 4*f(yd, xd - delta_x) -3*f(yd,xd)) / (-2*delta_x)
+                dy[-1, :] = (-f(yd - 2*delta_y, xd) + 4*f(yd - delta_y, xd) -3*f(yd,xd)) / (-2*delta_y)
+                dx[:, -1] = (-f(yr, xr - 2*delta_x) + 4*f(yr, xr - delta_x) -3*f(yr,xr)) / (-2*delta_x)
+                #dy[:, -1] = (-f(yr - 2*delta_y, xr) + 4*f(yr - delta_y, xr) -3*f(yr,xr)) / (-2*delta_y)
+                
+                #dx[:, 0] = (func.ev(y[:, 0] ,x[:, 0] + delta_x) - func.ev(y[:, 0], x[:, 0])) / delta_x
+                #dx[:, -1] = (func.ev(y[:, -1],x[:, -1]) - func.ev(y[:, -1], x[:, -1] - delta_x)) / delta_x
+                #dy[0, :] = (func.ev(y[0, :] + delta_y,x[0, :]) - func.ev(y[0, :], x[0, :])) / delta_y
+                #dy[-1, :] = (func.ev(y[-1, :],x[-1, :]) - func.ev(y[-1, :] - delta_y, x[-1, :])) / delta_y
+            else:
+                dy[0, :] = 0
+                dx[:, 0] = 0
+                dy[-1, :] = 0
+                dx[:, -1] = 0
         else:
             dy, dx = np.gradient(a, dy, dx, edge_order=edge_order)
         grad = np.zeros([a.shape[0], a.shape[1], 2])
@@ -104,17 +135,10 @@ class CFDSimulator(BaseSimulator):
         return cond
 
     def get_laplacian_operator(self):
-        cache_filename = "cache/A-%d-%d-%f%s.npz" % (self.n, self.m, self.h, self.get_boundaries_hash())
-        
         # Computing laplacian operator 
         size = int(self.n/self.h) * int(self.m / self.h)
         c = int(self.m/self.h)
-        I = scipy.sparse.eye(size)
-
-        # see if there's cached one 
-        if os.path.isfile(cache_filename):
-            A = self.load_sparse_csr(cache_filename)
-            return (A, I, size)
+        I = scipy.sparse.eye(size).tolil()
 
         A = scipy.sparse.lil_matrix((size, size))
         for iiy1 in range(int(self.n)):
@@ -126,7 +150,6 @@ class CFDSimulator(BaseSimulator):
                     A[s, s-1] = 1
                     A[s,s+c] = 1 
                     A[s,s-c] = 1
-        self.save_sparse_csr(cache_filename, A)
         return (A, I, size)
     
     def get_pressure_laplacian_operator(self, scale=10):
@@ -144,26 +167,40 @@ class CFDSimulator(BaseSimulator):
                     A[s,s+1] = 1
                     A[s,s+columns] = 1
                     A[s,s-columns] = 1
-                    b[s] = 0
                 else:
                     if self.boundary(i,j):
-                        A[s,s] = -2
+                        if not self.boundary_edge(i,j):
+                            A[s,s] = -2
+                            if self.boundary_up(i,j) or self.boundary_down(i,j):
+                                A[s,s+1] = 1
+                                A[s,s-1] = 1
+                            else:
+                                A[s,s+columns] = 1 
+                                A[s,s-columns] = 1
+                        else:
+                            # case when edge is considered 
+                            A[s,s] = 1
+                        """
+                        b[s] = 0
                         if self.boundary_edge(i,j):
-                            A[s,s] = 1 
-                            b[s] = 0
-                            continue
+                            if self.boundary_up(i,j) and self.boundary_left(i,j):
+                                A[s,s+columns+1] = 1
+                            if self.boundary_up(i,j) and self.boundary_right(i,j):
+                                A[s,s+columns-1] = 1
+                            if self.boundary_down(i,j) and self.boundary_left(i,j):
+                                A[s,s-columns+1] = 1
+                            if self.boundary_down(i,j) and self.boundary_right(i,j):
+                                A[s,s-columns-1] = 1
+                            A[s,s] = -2
                         if self.boundary_up(i,j):
-                            A[s,s+1] = 1
-                            A[s,s-1] = 1
-                        if self.boundary_down(i,j):
-                            A[s,s+1] = 1
-                            A[s,s-1] = 1
-                        if self.boundary_left(i,j):
                             A[s,s+columns] = 1
+                        if self.boundary_down(i,j):
                             A[s,s-columns] = 1
+                        if self.boundary_left(i,j):
+                            A[s,s+1] = 1
                         if self.boundary_right(i,j):
-                            A[s,s + columns] = 1
-                            A[s,s - columns] = 1
+                            A[s,s - 1] = 1
+                        """
                     else:
                         A[s,s] = -4
                         A[s,s+1] = 1
@@ -172,20 +209,12 @@ class CFDSimulator(BaseSimulator):
                         A[s,s-columns] = 1
         return (A, b)
 
-    def pressure_boundaries(self, c):
-        Ap, bp = self.get_pressure_laplacian_operator()
+    def pressure_boundaries(self, c, scale=10):
+        Ap, bp = self.get_pressure_laplacian_operator(scale=scale)
         b = c*bp
         return (Ap,b)
     
     def get_velocity_laplacian_operator(self, M):
-        A_cache_filename = "cache/Av-%d-%d-%f%s.npz" % (self.n, self.m, self.h, self.get_boundaries_hash())
-        bx_cache_filename = "cache/bv_x-%d-%d-%f%s.npz" % (self.n, self.m, self.h, self.get_boundaries_hash())
-        by_cache_filename = "cache/bv_y-%d-%d-%f%s.npz" % (self.n, self.m, self.h, self.get_boundaries_hash())
-        if os.path.isfile(A_cache_filename) and os.path.isfile(bx_cache_filename) and os.path.isfile(by_cache_filename):
-            A = self.load_sparse_csr(A_cache_filename)
-            bx = np.array(self.load_sparse_csr(bx_cache_filename).todense()).reshape(self.size)
-            by = np.array(self.load_sparse_csr(by_cache_filename).todense()).reshape(self.size)
-            return (A,bx,by)
         A = M.copy()
         b_x = np.ones(self.size)
         b_y = np.ones(self.size)
@@ -199,12 +228,10 @@ class CFDSimulator(BaseSimulator):
                     b_x[s] = 0
                     b_y[s] = 0
                 if self.boundary(i,j):
-                    A[s,s] = 1
-                    #b_x[s] = 0
-                    #b_y[s] = 0
+                    A[s,s] = -1
+                    b_x[s] = 0
+                    b_y[s] = 0
                     if self.boundary_edge(i,j):
-                        b_x[s] = 0
-                        b_y[s] = 0
                         A[s,s] = -2
                         if self.boundary_up(i,j):
                             A[s,s+columns] = 1
@@ -217,14 +244,12 @@ class CFDSimulator(BaseSimulator):
                         continue
                     if self.boundary_up(i,j) or self.boundary_down(i,j):
                         A[s,s] = -1
-                        b_y[s] = 0
                         if self.boundary_up(i,j):
                             A[s,s+columns] = 1
                         else:
                             A[s,s-columns] = 1
                     if self.boundary_right(i,j) or self.boundary_left(i,j):
-                        b_x[s] = 0
-                        A[s,s] = 1
+                        A[s,s] = -1
                         if self.boundary_left(i,j):
                             A[s,s+1] = 1
                         else:
@@ -242,6 +267,8 @@ class CFDSimulator(BaseSimulator):
             for j in range(m):
                 if self.boundaries[i,j]:
                     w[i,j] = 0
+        v[[0, -1], :, :] = 0
+        v[:, [0, -1], :] = 0
         return w 
     
     def reset_edge_pressure(self, p_):
@@ -381,18 +408,14 @@ class CFDSimulator(BaseSimulator):
 
     def projection(self, w3, dt):
         scale = 10
-        div_w3 = self.compute_divergence(w3, delta_x=0.5, delta_y=0.5, edge_order=1)
+        div_w3 = self.compute_divergence(w3, delta_x=0.5, delta_y=0.5)
         div_w3_reshaped = div_w3.reshape(self.size)
-        div_w3_scaled = self.scale_down_field(div_w3_reshaped)
-        self.scale_boundaries(scale=scale)
-        M, c = self.pressure_boundaries(div_w3_scaled.reshape(scale**2))
-        p = self.poisson(M, 0.25*c)
+        M, c = self.pressure_boundaries(div_w3_reshaped, scale=int(self.n))
+        p = self.poisson(M, c)
         #p = p_.reshape(int(self.n/self.h), int(self.m/self.h))
         # Set boundaries back 
-        p = p.reshape(scale,scale)
+        p = p.reshape(self.n,self.m)
         
-        p = self.scale_up_field(p, scale=scale)
-        self.rescale_boundaries()
         grad_p = self.compute_gradient(p, delta_x=0.5, delta_y=0.5, edge_order=1)
         self.logger.print_vector("p = ", p)
         self.logger.print_vector("grad p_x = ", grad_p[:,:,0])
@@ -441,8 +464,6 @@ class CFDSimulator(BaseSimulator):
         self.A, self.I, self.size = self.get_laplacian_operator()
         self.bmap = np.zeros([int(self.n/self.h), int(self.m/self.h)])
         self.iteration = 0
-        
-
     
     def finish(self):
         #plt.plot(np.diff(self.deltas))
