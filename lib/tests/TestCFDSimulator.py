@@ -64,6 +64,18 @@ class TestCFDSimulator(unittest.TestCase):
         dfdy = grad[:,:,1]
         nptest.assert_array_almost_equal(dfdy[1:-1, 1:-1], 2*y[1:-1,1:-1], decimal=3, verbose=True)
         nptest.assert_array_almost_equal(dfdx[1:-1, 1:-1], 2*x[1:-1,1:-1], decimal=3, verbose=True)
+        
+        y,x = np.mgrid[0:100:1, 0:100:1]
+        f = x + 2*y 
+        grad = simulator.compute_gradient(f, delta_x=0.5, delta_y=0.5)
+        dfdx = grad[:,:,0]
+        dfdy = grad[:,:,1]
+        nptest.assert_array_almost_equal(dfdy, 2*np.ones(f.shape),
+            err_msg="Gradient with deltas not working on bigger scales (h=1)"
+        )
+        nptest.assert_array_almost_equal(dfdx, np.ones(f.shape),
+            err_msg="Gradient with deltas not working on bigger scales (h=1)"
+        )
 
     def test_divergence(self):
         y,x = np.mgrid[0:100:0.1, 0:100:0.1]
