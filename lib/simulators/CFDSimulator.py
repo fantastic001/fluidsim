@@ -409,13 +409,15 @@ class CFDSimulator(BaseSimulator):
     def projection(self, w3, dt):
         scale = 10
         div_w3 = self.compute_divergence(w3, delta_x=0.5, delta_y=0.5)
-        div_w3_reshaped = div_w3.reshape(self.size)
-        M, c = self.pressure_boundaries(div_w3_reshaped, scale=int(self.n))
-        p = self.poisson(M, c)
-        #p = p_.reshape(int(self.n/self.h), int(self.m/self.h))
-        # Set boundaries back 
-        p = p.reshape(self.n,self.m)
-        
+        p = np.zeros([int(self.n), int(self.m)])
+        i,j = np.mgrid[1:self.n-1, 1:self.m-1].astype(int)
+        for k in range(5000):
+            p[i,j] = (-div_w3[i,j] + p[i+1,j] + p[i-1,j] + p[i,j+1] + p[i,j-1])/4
+            p[0, :] = p[1, :]
+            p[-1, :] = p[-2, :]
+            p[:, 0] = p[:, 1]
+            p[:, -1] = p[:, -2]
+
         grad_p = self.compute_gradient(p, delta_x=0.5, delta_y=0.5, edge_order=1)
         self.logger.print_vector("p = ", p)
         self.logger.print_vector("grad p_x = ", grad_p[:,:,0])
