@@ -105,6 +105,24 @@ class TestCFDSimulator(unittest.TestCase):
         divergence = simulator.compute_divergence(f, 0.1, 0.1)
         divergence2 = simulator.compute_divergence(2*f, 0.1, 0.1)
         nptest.assert_array_almost_equal(2*divergence, divergence2)
+
+        # test with deltas 
+
+        f[:,:,0] = y 
+        f[:,:,1] = x
+        divergence = simulator.compute_divergence(f, 0.1, 0.1, delta_x=0.05, delta_y=0.05)
+        nptest.assert_array_almost_equal(divergence[1:-1, 1:-1], np.zeros(x.shape)[1:-1, 1:-1])
+        
+        f[:,:,0] = 5*x 
+        f[:,:,1] = y
+        divergence = simulator.compute_divergence(f, 0.1, 0.1, delta_x=0.05, delta_y=0.05)
+        nptest.assert_array_almost_equal(divergence[1:-1, 1:-1], 6*np.ones(x.shape)[1:-1, 1:-1])
+
+        f[:,:,0] = 2*x**2
+        f[:,:,1] = 4*y**2
+        expected[:,:] = 4*x + 8*y
+        divergence = simulator.compute_divergence(f, 0.1, 0.1, delta_x=0.05, delta_y=0.05)
+        nptest.assert_array_almost_equal(divergence[1:-1, 1:-1], expected[1:-1, 1:-1])
     
     def test_laplacian(self):
         y,x = np.mgrid[0:100:0.1, 0:100:0.1]
@@ -231,35 +249,57 @@ class TestCFDSimulator(unittest.TestCase):
         u[:,:,0] = 1e+15
         u[:,:,1] = 1e+15
         w, p = simulator.projection(u, dt)
-        nptest.assert_allclose(simulator.compute_divergence(w, simulator.h, simulator.h), expected, atol=1, rtol=0.1)
+        nptest.assert_allclose(simulator.compute_divergence(w, delta_x=0.5, delta_y=0.5), expected, atol=1, rtol=0.1,
+            err_msg="Not equal on constant field"
+        )
         
         u[:,:,0] = x**2 + y**2
         u[:,:,1] = 2*x**2 + y**2
         w, p = simulator.projection(u, dt)
-        nptest.assert_allclose(simulator.compute_divergence(w, simulator.h, simulator.h), expected, atol=1000, rtol=0.1)
+        grad_p = simulator.compute_gradient(p, delta_x=0.5, delta_y=0.5)
+        div_u = simulator.compute_divergence(u, delta_x=0.5, delta_y=0.5)
+        div_grad_p = simulator.compute_divergence(grad_p, delta_x=0.5, delta_y=0.5)
+        nptest.assert_allclose(div_u - div_grad_p, expected, atol=20, rtol=0.1, 
+            err_msg="Not equal when computed divergence on each."
+        )
+        
+        u[:,:,0] = x**2 + y**2
+        u[:,:,1] = 2*x**2 + y**2
+        w, p = simulator.projection(u, dt)
+        nptest.assert_allclose(simulator.compute_divergence(w, delta_x=0.5, delta_y=0.5), expected, atol=1000, rtol=0.1,
+            err_msg="Not eqaul on whole for radial field"
+        )
 
         u[:,:,0] = x
         u[:,:,1] = y
         w, p = simulator.projection(u, dt)
-        nptest.assert_allclose(simulator.compute_divergence(w, simulator.h, simulator.h), expected, atol=10, rtol=0.1)
+        nptest.assert_allclose(simulator.compute_divergence(w, delta_x=0.5, delta_y=0.5), expected, atol=10, rtol=0.1,
+            err_msg="Not equal on constant field"
+        )
         
         # we expect symmatric response to symmetric input
         u[:,:,0] = x
         u[:,:,1] = 0
         w, p = simulator.projection(u, dt)
-        nptest.assert_allclose(w[0:dim // 2, :, 0], w[dim-1:(dim // 2)-1:-1, :, 0], atol=0.01, rtol=0.001)
+        nptest.assert_allclose(w[0:dim // 2, :, 0], w[dim-1:(dim // 2)-1:-1, :, 0], atol=0.01, rtol=0.001,
+            err_msg="Not symmetric on field <x, 0>"
+        )
         
         u[:,:,0] = 0
         u[:,:,1] = y
         w, p = simulator.projection(u, dt)
-        nptest.assert_allclose(w[:, 0:dim // 2, 1], w[:, dim-1:(dim // 2)-1:-1, 1], atol=0.01, rtol=0.001)
+        nptest.assert_allclose(w[:, 0:dim // 2, 1], w[:, dim-1:(dim // 2)-1:-1, 1], atol=0.01, rtol=0.001,
+            err_msg="Not symmetric on field <0, y>"
+        )
 
         u[:,:,0] = 10 - x/10
         u[[0, -1], :, 0] = 0
         u[:, [0, -1], 0] = 0
         u[:,:,1] = 0
         w, p = simulator.projection(u, dt)
-        nptest.assert_allclose(w[0:dim // 2, :, 0], w[dim-1:(dim // 2)-1:-1, :, 0], atol=0.01, rtol=0.001)
+        nptest.assert_allclose(w[0:dim // 2, :, 0], w[dim-1:(dim // 2)-1:-1, :, 0], atol=0.01, rtol=0.001,
+            err_msg="Not symmetric on real field"
+        )
 
     def test_scale_boundaries(self):
         

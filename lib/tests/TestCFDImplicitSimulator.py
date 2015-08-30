@@ -156,8 +156,12 @@ class TestCFDImplicitSimulator(unittest.TestCase):
         for iteration in range(5):
             simulator.step(dt)
         res = simulator.velocities
-        nptest.assert_allclose(res[1:size // 2, 1:-1, 0], res[size-2:(size // 2)-1:-1, 1:-1, 0])
-        nptest.assert_allclose(res[1:size // 2, 1:-1, 1], -res[size-2:(size // 2)-1:-1, 1:-1, 1])
+        nptest.assert_allclose(res[1:size // 2, 1:-1, 0], res[size-2:(size // 2)-1:-1, 1:-1, 0],
+            err_msg="Not symmetric by row"
+        )
+        nptest.assert_allclose(res[1:size // 2, 1:-1, 1], -res[size-2:(size // 2)-1:-1, 1:-1, 1],
+            err_msg="Not symmetric by column"
+        )
 
     def test_step_circle(self):
         size = 100
@@ -175,5 +179,9 @@ class TestCFDImplicitSimulator(unittest.TestCase):
         for iteration in range(5):
             simulator.step(dt)
         res = simulator.velocities
-        nptest.assert_allclose(res[1:size // 2, 1:-1, 0], res[size-2:(size // 2)-1:-1, 1:-1, 0])
-        nptest.assert_allclose(res[1:size // 2, 1:-1, 1], -res[size-2:(size // 2)-1:-1, 1:-1, 1])
+        nptest.assert_allclose(res[1:size // 2, 1:-1, 0], res[size-2:(size // 2)-1:-1, 1:-1, 0],
+            err_msg="Not symmetric by row"
+        )
+        nptest.assert_allclose(res[1:size // 2, 1:-1, 1], -res[size-2:(size // 2)-1:-1, 1:-1, 1],
+            err_msg="Not symmetric by column"
+        )
