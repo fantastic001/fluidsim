@@ -65,7 +65,7 @@ class LBMSimulator(BaseSimulator):
         #fin[:,-1,8] = self.f[:,-1,8]
         self.f = fin.copy()
 
-    def start(self):
+    def start(self, **kwargs):
         self.n, self.m = self.densities.shape
         self.w = np.array([4./9., 1./9., 1./9., 1./9., 1./36., 1./36., 1./9., 1./36., 1./36.])
         self.feq = np.zeros([self.n,self.m,9])

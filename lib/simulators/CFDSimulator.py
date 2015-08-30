@@ -446,7 +446,7 @@ class CFDSimulator(BaseSimulator):
         self.rescale_boundaries()
         return self.scale_up_field(res) * self.non_boundaries
 
-    def start(self):
+    def start(self, **kwargs):
         self.deltas = []
 
         self.h = 1.0

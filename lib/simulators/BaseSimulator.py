@@ -3,7 +3,7 @@ from ..loggers import BaseLogger
 
 class BaseSimulator(object):
     
-    def __init__(self, densities, velocities, boundary, viscosity, logger=None):
+    def __init__(self, densities, velocities, boundary, viscosity, logger=None, **kwargs):
         self.boundaries = boundary 
         self.viscosity = viscosity
         self.densities = densities 
@@ -12,7 +12,7 @@ class BaseSimulator(object):
             self.logger = logger 
         else:
             self.logger = BaseLogger()
-        self.start()
+        self.start(**kwargs)
     
     def start(self):
         pass
