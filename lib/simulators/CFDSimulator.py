@@ -124,26 +124,26 @@ class CFDSimulator(BaseSimulator):
         return self.boundary_up(i,j) or self.boundary_left(i,j) or self.boundary_right(i,j) or self.boundary_down(i,j)
 
     def get_scaling_condition(self, scale=10):
-        n,m = (int(self.n), int(self.m))
-        cond = np.zeros([int(self.n*self.m), int(self.n*self.m)], dtype=np.bool)
+        n,m = (int(self.n), int(self.n))
+        cond = np.zeros([int(self.n*self.n), int(self.n*self.n)], dtype=np.bool)
         for i in range(n):
             for j in range(m):
                 for k in range(n):
                     for l in range(m):
                         if i % (scale+1) == 0 and j % (scale+1) == 0 and k % (scale+1) == 0 and l % (scale+1) == 0:
-                            cond[int(i*self.m) + j, int(k*self.m) + l] = True
+                            cond[int(i*self.n) + j, int(k*self.n) + l] = True
         return cond
 
     def get_laplacian_operator(self):
         # Computing laplacian operator 
-        size = int(self.n/self.h) * int(self.m / self.h)
-        c = int(self.m/self.h)
+        size = int(self.n) * int(self.n)
+        c = int(self.n)
         I = scipy.sparse.eye(size).tolil()
 
         A = scipy.sparse.lil_matrix((size, size))
         for iiy1 in range(int(self.n)):
-            for iix1 in range(int(self.m)):
-                s = (self.m * iiy1) + iix1
+            for iix1 in range(int(self.n)):
+                s = (self.n * iiy1) + iix1
                 if not self.boundary(iiy1, iix1):
                     A[s,s] = -4
                     A[s, s+1] = 1
@@ -218,8 +218,8 @@ class CFDSimulator(BaseSimulator):
         A = M.copy()
         b_x = np.ones(self.size)
         b_y = np.ones(self.size)
-        columns = int(self.m/self.h)
-        rows = int(self.n/self.h)
+        columns = int(self.n)
+        rows = int(self.n)
         for i in range(rows):
             for j in range(columns):
                 s = columns * i + j
@@ -257,7 +257,7 @@ class CFDSimulator(BaseSimulator):
         return (A,b_x, b_y)
 
     def velocity_boundaries(self, c_x, c_y, dt=0.1):
-        Av, self.bv_x, self.bv_y = self.get_velocity_laplacian_operator(self.I - self.viscosity*dt*self.A)
+        Av, self.bv_x, self.bv_y = self.get_velocity_laplacian_operator(self.I - self.viscosity*dt*self.A / (self.h**2))
         return (Av, c_x*self.bv_x, c_y*self.bv_y)
     
     def reset_solid_velocities(self, v):
@@ -312,12 +312,12 @@ class CFDSimulator(BaseSimulator):
         else:
             cond = self.cond
         row_step = int(self.n/scale) + 1
-        column_step = int(self.m / scale) + 1
+        column_step = int(self.n / scale) + 1
         step = int(self.size/scale**2) + 1
-        b_normal = b.reshape(int(self.n), int(self.m))
-        mark_x = np.zeros([int(self.n), int(self.m)])
+        b_normal = b.reshape(int(self.n), int(self.n))
+        mark_x = np.zeros([int(self.n), int(self.n)])
         mark_x[:,::column_step].fill(1)
-        mark_y = np.zeros([int(self.n), int(self.m)])
+        mark_y = np.zeros([int(self.n), int(self.n)])
         mark_y[::row_step, :].fill(1)
         condition = np.logical_and(mark_x,mark_y)
 
@@ -334,7 +334,7 @@ class CFDSimulator(BaseSimulator):
 
     def scale_up(self, p, scale=10):
         p = p.reshape(scale, scale)
-        ax = np.linspace(0, self.m-1, scale)
+        ax = np.linspace(0, self.n-1, scale)
         ay = np.linspace(0, self.n-1, scale)
         func = scipy.interpolate.RectBivariateSpline(ax,ay, p)
         
@@ -344,11 +344,11 @@ class CFDSimulator(BaseSimulator):
     
     def scale_down_field(self, b, scale=10):
         row_step = int(self.n/scale) + 1
-        column_step = int(self.m / scale) + 1
-        b_normal = b.reshape(int(self.n), int(self.m))
-        mark_x = np.zeros([int(self.n), int(self.m)]).astype(bool)
+        column_step = int(self.n / scale) + 1
+        b_normal = b.reshape(int(self.n), int(self.n))
+        mark_x = np.zeros([int(self.n), int(self.n)]).astype(bool)
         mark_x[:,::column_step] = True
-        mark_y = np.zeros([int(self.n), int(self.m)]).astype(bool)
+        mark_y = np.zeros([int(self.n), int(self.n)]).astype(bool)
         mark_y[::row_step, :] = True
         condition = np.logical_and(mark_x,mark_y)
 
@@ -357,8 +357,8 @@ class CFDSimulator(BaseSimulator):
 
     def scale_up_field(self, p, scale=10):
         p = p.reshape(scale, scale)
-        ax = np.linspace(0, self.m-1, scale)
-        ay = np.linspace(0, self.n-1, scale)
+        ax = np.arange(0, 1, self.h*scale)
+        ay = np.arange(0, 1, self.h*scale)
         func = scipy.interpolate.RectBivariateSpline(ax,ay, p)
         return func.ev(self.y, self.x)
     
@@ -367,7 +367,7 @@ class CFDSimulator(BaseSimulator):
         #self.boundaries = self.scale_down_field(self.boundaries, scale=scale)
         b = np.zeros([scale, scale], dtype=np.bool)
         stepr = int(self.n / scale) + 1
-        stepc = int(self.m / scale) + 1
+        stepc = int(self.n / scale) + 1
         for i in range(0, scale):
             for j in range(0, scale):
                 if self.boundaries[i*stepr, j*stepc]:
@@ -408,21 +408,29 @@ class CFDSimulator(BaseSimulator):
 
     def projection(self, w3, dt):
         scale = 10
-        div_w3 = self.compute_divergence(w3, delta_x=0.5, delta_y=0.5)
-        p = np.zeros([int(self.n), int(self.m)])
-        i,j = np.mgrid[1:self.n-1, 1:self.m-1].astype(int)
-        for k in range(5000):
-            p[i,j] = (-div_w3[i,j] + p[i+1,j] + p[i-1,j] + p[i,j+1] + p[i,j-1])/4
+        div = np.zeros([self.n, self.n])
+        p = np.zeros([int(self.n), int(self.n)])
+        i,j = np.mgrid[1:self.n-1, 1:self.n-1].astype(int)
+        div[i,j] = (w3[i,j+1, 0] - w3[i,j-1, 0]) + (w3[i+1,j,1] - w3[i-1,j,1])
+        div[[0, -1], :] = div[[1, -2], :]
+        div[:, [0, -1]] = div[:, [1, -2]]
+        self.logger.print_vector("maximum for this divergence %f", div.max()/(2*self.h))
+        for k in range(100):
+            p[i,j] = (-0.5*self.h*div[i,j] + p[i+1,j] + p[i-1,j] + p[i,j+1] + p[i,j-1])/4
             p[0, :] = p[1, :]
             p[-1, :] = p[-2, :]
             p[:, 0] = p[:, 1]
             p[:, -1] = p[:, -2]
-
-        grad_p = self.compute_gradient(p, delta_x=0.5, delta_y=0.5, edge_order=1)
+            p[[0, 0, -1, -1], [0, -1, 0, -1]] = 0.5*( p[[0, 0, -1, -1], [1, -2, 1, -2]] + p[[1, 1, -2, -2], [0, -1, 0, -1]] )
+        grad_p = self.compute_gradient(p, self.h, self.h, edge_order=1)
         self.logger.print_vector("p = ", p)
         self.logger.print_vector("grad p_x = ", grad_p[:,:,0])
         self.logger.print_vector("grad p_y = ", grad_p[:,:,1])
         w4 = w3 - grad_p 
+            
+        res = self.compute_divergence(w4, self.h, self.h)
+        self.logger.print_vector("maximum for later divergence %f", res.max())
+        self.logger.print_vector("Maximum found at ", res.argmax())
         return (w4, p)
 
     def advect_substance(self, u, h, path, dt):
@@ -449,12 +457,12 @@ class CFDSimulator(BaseSimulator):
     def start(self, **kwargs):
         self.deltas = []
 
-        self.h = 1.0
-        self.n, self.m = (self.velocities.shape[0]*self.h, self.velocities.shape[1]*self.h)
+        self.n = self.velocities.shape[0]
+        self.h = kwargs.get("h", 1.0 / self.n)
         
-        self.non_boundaries = np.ones([int(self.n), int(self.m)]) - self.boundaries
+        self.non_boundaries = np.ones([self.n, self.n]) - self.boundaries
         
-        self.pressure = np.zeros([int(self.n/self.h), int(self.m/self.h)])
+        self.pressure = np.zeros([self.n, self.n])
 
         self.forces = 10*self.velocities 
         self.velocities.fill(0)
@@ -462,9 +470,9 @@ class CFDSimulator(BaseSimulator):
         #for fi in range(int(self.n/self.h)):
         #    self.forces[fi, :, 0] = np.linspace(100, 0, self.m/self.h)
         
-        self.y, self.x = np.mgrid[0:int(self.n), 0:int(self.m)]
+        self.y, self.x = np.mgrid[0:1:self.h, 0:1:self.h]
         self.A, self.I, self.size = self.get_laplacian_operator()
-        self.bmap = np.zeros([int(self.n/self.h), int(self.m/self.h)])
+        self.bmap = np.zeros([self.n, self.n])
         self.iteration = 0
     
     def finish(self):

@@ -17,8 +17,8 @@ class CFDImplicitSimulator(CFDSimulator):
         w2 = w1.copy()
         psy = self.y - dt*w1[:, :, 1]
         psx = self.x - dt*w1[:, :, 0]
-        ax = np.linspace(0, self.m-1, self.m)
-        ay = np.linspace(0, self.n-1, self.n)
+        ax = np.arange(0, 1.0, self.h)
+        ay = np.arange(0, 1.0, self.h)
 
         func0 = interpolate.RectBivariateSpline(ax, ay, w1[:,:,0], kx=1, ky=1)
         func1 = interpolate.RectBivariateSpline(ax, ay, w1[:,:,1], kx=1, ky=1)
@@ -52,9 +52,9 @@ class CFDImplicitSimulator(CFDSimulator):
         #w31 = self.scale_up(w31)
         #self.rescale_boundaries()
 
-        w3 = np.zeros([int(self.n/self.h), int(self.m/self.h), 2])
-        w3[:,:,0] = w30.reshape([int(self.n/self.h), int(self.m/self.h)])
-        w3[:,:,1] = w31.reshape([int(self.n/self.h), int(self.m/self.h)])
+        w3 = np.zeros([int(self.n), int(self.n), 2])
+        w3[:,:,0] = w30.reshape([int(self.n), int(self.n)])
+        w3[:,:,1] = w31.reshape([int(self.n), int(self.n)])
 
         return self.reset_solid_velocities(w3)
     
