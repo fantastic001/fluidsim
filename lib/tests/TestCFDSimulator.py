@@ -2,6 +2,8 @@
 from ..simulators import CFDSimulator, CFDImplicitSimulator, CFDExplicitSimulator
 from ..structures import Cell 
 
+from ..loggers import StandardOutputLogger
+
 import unittest 
 
 import numpy as np
@@ -159,102 +161,102 @@ class TestCFDSimulator(unittest.TestCase):
 
     def test_laplacian_operator(self):
         simulator = CFDSimulator(np.zeros([10,10]),np.zeros([10,10, 2]),np.zeros([10,10]),1)
-        n,m = int(10/simulator.h), int(10/simulator.h)
+        n,m = int(10), int(10)
         # construct grid first 
-        y, x = np.mgrid[0:10:simulator.h, 0:10:simulator.h]
-        u = np.zeros([int(10/simulator.h), int(10/simulator.h)])
-        expected = np.zeros([int(10/simulator.h),int(10/simulator.h)])
+        y, x = np.mgrid[0:1:simulator.h, 0:1:simulator.h]
+        u = np.zeros([int(10), int(10)])
+        expected = np.zeros([int(10),int(10)])
         A, I, size = simulator.get_laplacian_operator()
 
         u[:,:] = 100
         res = A.dot(u.reshape(size))
         expected[:,:] = 0
-        nptest.assert_array_almost_equal(res.reshape(n,m), expected)
+        nptest.assert_array_almost_equal(res.reshape(n,m), simulator.h*expected)
 
         u[:,:] = x
         res = A.dot(u.reshape(size))
         expected[:,:] = 0
-        nptest.assert_array_almost_equal(res.reshape(n,m)[1:-1,1:-1], expected[1:-1, 1:-1])
+        nptest.assert_array_almost_equal(res.reshape(n,m)[1:-1,1:-1], simulator.h*expected[1:-1, 1:-1])
         
         u[:,:] = y
         res = A.dot(u.reshape(size))
         expected[:,:] = 0
-        nptest.assert_array_almost_equal(res.reshape(n,m)[1:-1,1:-1], expected[1:-1,1:-1])
+        nptest.assert_array_almost_equal(res.reshape(n,m)[1:-1,1:-1], simulator.h*expected[1:-1,1:-1])
 
         u[:,:] = x**2
         res = A.dot(u.reshape(size))
         expected[:,:] = 2
-        nptest.assert_array_almost_equal(res.reshape(n,m)[1:-1,1:-1], expected[1:-1,1:-1])
+        nptest.assert_array_almost_equal(res.reshape(n,m)[1:-1,1:-1], simulator.h*expected[1:-1,1:-1])
         
         u[:,:] = y**2
         res = A.dot(u.reshape(size))
         expected[:,:] = 2
-        nptest.assert_array_almost_equal(res.reshape(n,m)[1:-1,1:-1], expected[1:-1,1:-1])
+        nptest.assert_array_almost_equal(res.reshape(n,m)[1:-1,1:-1], simulator.h*expected[1:-1,1:-1])
         
         u[:,:] = x*y
         res = A.dot(u.reshape(size))
         expected[:,:] = 0
-        nptest.assert_array_almost_equal(res.reshape(n,m)[1:-1,1:-1], expected[1:-1,1:-1])
+        nptest.assert_array_almost_equal(res.reshape(n,m)[1:-1,1:-1], simulator.h*expected[1:-1,1:-1])
         
         u[:,:] = x**2 + y**2
         res = A.dot(u.reshape(size))
         expected[:,:] = 4
-        nptest.assert_array_almost_equal(res.reshape(n,m)[1:-1,1:-1], expected[1:-1,1:-1])
+        nptest.assert_array_almost_equal(res.reshape(n,m)[1:-1,1:-1], simulator.h*expected[1:-1,1:-1])
         
         u[:,:] = x**2 * y**2
         res = A.dot(u.reshape(size))
         expected[:,:] = 2*x**2 + 2*y**2
-        nptest.assert_array_almost_equal(res.reshape(n,m)[1:-1,1:-1], expected[1:-1,1:-1])
+        nptest.assert_array_almost_equal(res.reshape(n,m)[1:-1,1:-1], simulator.h*expected[1:-1,1:-1])
     
     def test_pressure_laplacian_operator(self):
         simulator = CFDSimulator(np.zeros([10,10]),np.zeros([10,10, 2]),np.zeros([10,10]),1)
-        n,m = int(10/simulator.h), int(10/simulator.h)
+        n,m = int(10), int(10)
         # construct grid first 
-        y, x = np.mgrid[0:10:simulator.h, 0:10:simulator.h]
-        u = np.zeros([int(10/simulator.h), int(10/simulator.h)])
-        expected = np.zeros([int(10/simulator.h),int(10/simulator.h)])
+        y, x = np.mgrid[0:1:simulator.h, 0:1:simulator.h]
+        u = np.zeros([int(10), int(10)])
+        expected = np.zeros([int(10),int(10)])
         size = n*m
         A, c = simulator.get_pressure_laplacian_operator()
 
         u[:,:] = 100
         res = A.dot(u.reshape(size))
         expected[:,:] = 0
-        nptest.assert_array_almost_equal(res.reshape(n,m)[1:-1,1:-1], expected[1:-1,1:-1])
+        nptest.assert_array_almost_equal(res.reshape(n,m)[1:-1,1:-1], simulator.h*expected[1:-1,1:-1])
 
         u[:,:] = x
         res = A.dot(u.reshape(size))
         expected[:,:] = 0
-        nptest.assert_array_almost_equal(res.reshape(n,m)[1:-1,1:-1], expected[1:-1, 1:-1])
+        nptest.assert_array_almost_equal(res.reshape(n,m)[1:-1,1:-1], simulator.h*expected[1:-1, 1:-1])
         
         u[:,:] = y
         res = A.dot(u.reshape(size))
         expected[:,:] = 0
-        nptest.assert_array_almost_equal(res.reshape(n,m)[1:-1,1:-1], expected[1:-1,1:-1])
+        nptest.assert_array_almost_equal(res.reshape(n,m)[1:-1,1:-1], simulator.h*expected[1:-1,1:-1])
 
         u[:,:] = x**2
         res = A.dot(u.reshape(size))
         expected[:,:] = 2
-        nptest.assert_array_almost_equal(res.reshape(n,m)[1:-1,1:-1], expected[1:-1,1:-1])
+        nptest.assert_array_almost_equal(res.reshape(n,m)[1:-1,1:-1], simulator.h*expected[1:-1,1:-1])
         
         u[:,:] = y**2
         res = A.dot(u.reshape(size))
         expected[:,:] = 2
-        nptest.assert_array_almost_equal(res.reshape(n,m)[1:-1,1:-1], expected[1:-1,1:-1])
+        nptest.assert_array_almost_equal(res.reshape(n,m)[1:-1,1:-1], simulator.h*expected[1:-1,1:-1])
         
         u[:,:] = x*y
         res = A.dot(u.reshape(size))
         expected[:,:] = 0
-        nptest.assert_array_almost_equal(res.reshape(n,m)[1:-1,1:-1], expected[1:-1,1:-1])
+        nptest.assert_array_almost_equal(res.reshape(n,m)[1:-1,1:-1], simulator.h*expected[1:-1,1:-1])
         
         u[:,:] = x**2 + y**2
         res = A.dot(u.reshape(size))
         expected[:,:] = 4
-        nptest.assert_array_almost_equal(res.reshape(n,m)[1:-1,1:-1], expected[1:-1,1:-1])
+        nptest.assert_array_almost_equal(res.reshape(n,m)[1:-1,1:-1], simulator.h*expected[1:-1,1:-1])
         
         u[:,:] = x**2 * y**2
         res = A.dot(u.reshape(size))
         expected[:,:] = 2*x**2 + 2*y**2
-        nptest.assert_array_almost_equal(res.reshape(n,m)[1:-1,1:-1], expected[1:-1,1:-1])
+        nptest.assert_array_almost_equal(res.reshape(n,m)[1:-1,1:-1], simulator.h*expected[1:-1,1:-1])
         
     
     def test_projection(self):
@@ -262,42 +264,51 @@ class TestCFDSimulator(unittest.TestCase):
         # TODO Fix this to be independent
         dim = 100
         h = 1/dim
-        simulator = CFDSimulator(np.zeros([dim,dim]),np.zeros([dim,dim, 2]),np.zeros([dim,dim]),0.001, h=h)
+        simulator = CFDSimulator(np.zeros([dim,dim]),np.zeros([dim,dim, 2]),np.zeros([dim,dim]),0.001, logger=StandardOutputLogger(debug=True), h=h)
         # construct grid first 
         y, x = np.mgrid[0:1:simulator.h, 0:1:simulator.h]
         u = np.zeros([int(dim), int(dim), 2])
         expected = np.zeros([int(dim),int(dim)])
         dt = 0.1
 
-        u[:,:,0] = 1
-        u[:,:,1] = 1
+        u[:,:,0] = 0.1
+        u[:,:,1] = 0.1
         w, p = simulator.projection(u, dt)
         nptest.assert_allclose(simulator.compute_divergence(w), expected,
-            err_msg="Not equal on constant field"
+            err_msg="Not equal on constant field",
+            atol=1e-06
         )
         
-        u[:,:,0] = (x**2 + y**2) / 10
-        u[:,:,1] = (2*x**2 + y**2)/10
+        u[:,:,0] = y/10
+        u[:,:,1] = x/10
         w, p = simulator.projection(u, dt)
-        grad_p = simulator.compute_gradient(p)
-        div_u = simulator.compute_divergence(u)
-        div_grad_p = simulator.compute_divergence(grad_p)
-        nptest.assert_allclose(div_u - div_grad_p, expected, 
-            err_msg="Not equal when computed divergence on each."
+        nptest.assert_allclose(simulator.compute_divergence(w, simulator.h, simulator.h), expected,
+            err_msg="Not eqaul on whole for vortex field",
+            atol=1e-06
         )
-        
-        u[:,:,0] = (x**2 + y**2) / 10
-        u[:,:,1] = (2*x**2 + y**2) / 10
+
+        u[4:-4,4:-4,0] = x[4:-4,4:-4]/10
+        u[4:-4,4:-4,1] = y[4:-4,4:-4]/10
         w, p = simulator.projection(u, dt)
-        nptest.assert_allclose(simulator.compute_divergence(w), expected,
-            err_msg="Not eqaul on whole for radial field"
+        nptest.assert_allclose(simulator.compute_divergence(w, simulator.h, simulator.h), expected,
+            err_msg="Not eqaul on whole for field not at boundaries",
+            atol=1e-06
+        )
+
+        u[:,:,0] = (x**2 + y**2) / 100
+        u[:,:,1] = (2*x**2 + y**2) / 100
+        w, p = simulator.projection(u, dt)
+        nptest.assert_allclose(simulator.compute_divergence(w, simulator.h, simulator.h), expected,
+            err_msg="Not eqaul on whole for radial field",
+            atol=1e-03
         )
 
         u[:,:,0] = x/10
         u[:,:,1] = y/10
         w, p = simulator.projection(u, dt)
-        nptest.assert_allclose(simulator.compute_divergence(w), expected,
-            err_msg="Not equal on constant field"
+        nptest.assert_allclose(simulator.compute_divergence(w, simulator.h, simulator.h), expected,
+            err_msg="Not equal on constant field",
+            atol=1e-06
         )
         
         # we expect symmatric response to symmetric input
