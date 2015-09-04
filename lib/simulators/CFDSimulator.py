@@ -406,29 +406,64 @@ class CFDSimulator(BaseSimulator):
         p = np.linalg.solve(A, w)
         return p
 
-    def projection(self, w3, dt):
+    def set_velocity_bounds(self, w):
+        v = w.copy()
+        v[:, [0, -1], 0] = -v[:, [1, -2], 0]
+        v[:, [0, -1], 1] = v[:, [1, -2], 1]
+        
+        v[[0, -1], :, 1] = -v[[1, -2], :, 1]
+        v[[0, -1], :, 0] = v[[1, -2], :, 0]
+        
+        v[[0, 0, -1, -1], [0, -1, 0, -1], 0] = 0.5*( v[[0, 0, -1, -1], [1, -2, 1, -2], 0] + v[[1, 1, -2, -2], [0, -1, 0, -1], 0] )
+        v[[0, 0, -1, -1], [0, -1, 0, -1], 1] = 0.5*( v[[0, 0, -1, -1], [1, -2, 1, -2], 1] + v[[1, 1, -2, -2], [0, -1, 0, -1], 1] )
+        return v
+
+    def neumann_boundaries(self, f):
+        p = f.copy()
+        p[0, :] = p[1, :]
+        p[-1, :] = p[-2, :]
+        p[:, 0] = p[:, 1]
+        p[:, -1] = p[:, -2]
+        p[[0, 0, -1, -1], [0, -1, 0, -1]] = 0.5*( p[[0, 0, -1, -1], [1, -2, 1, -2]] + p[[1, 1, -2, -2], [0, -1, 0, -1]] )
+        return p
+
+    def projection(self, w3, dt, initial=None):
         scale = 10
+
+        self.logger.print_vector("New w3 x: ", w3[:,:,0])
+        self.logger.print_vector("New w3 y: ", w3[:,:,1])
+        
         div = np.zeros([self.n, self.n])
         p = np.zeros([int(self.n), int(self.n)])
+        if initial != None:
+            p = initial
         i,j = np.mgrid[1:self.n-1, 1:self.n-1].astype(int)
         div[i,j] = (w3[i,j+1, 0] - w3[i,j-1, 0]) + (w3[i+1,j,1] - w3[i-1,j,1])
-        div[[0, -1], :] = div[[1, -2], :]
-        div[:, [0, -1]] = div[:, [1, -2]]
+        self.logger.print_vector("Divergence field for old velocity before neumann: ", div)
+        div = self.neumann_boundaries(div)
+
+        self.logger.print_vector("Divergence field for old velocity: ", div)
         self.logger.print_vector("maximum for this divergence %f", div.max()/(2*self.h))
-        for k in range(100):
+        for k in range(1000):
+            self.logger.print_vector("After %d iterations" % k, p)
             p[i,j] = (-0.5*self.h*div[i,j] + p[i+1,j] + p[i-1,j] + p[i,j+1] + p[i,j-1])/4
-            p[0, :] = p[1, :]
-            p[-1, :] = p[-2, :]
-            p[:, 0] = p[:, 1]
-            p[:, -1] = p[:, -2]
-            p[[0, 0, -1, -1], [0, -1, 0, -1]] = 0.5*( p[[0, 0, -1, -1], [1, -2, 1, -2]] + p[[1, 1, -2, -2], [0, -1, 0, -1]] )
+            p = self.neumann_boundaries(p)
+        
         grad_p = self.compute_gradient(p, self.h, self.h, edge_order=1)
         self.logger.print_vector("p = ", p)
         self.logger.print_vector("grad p_x = ", grad_p[:,:,0])
         self.logger.print_vector("grad p_y = ", grad_p[:,:,1])
-        w4 = w3 - grad_p 
-            
-        res = self.compute_divergence(w4, self.h, self.h)
+        self.logger.print_vector("laplacian of p: ", self.compute_divergence(grad_p, self.h, self.h))
+        
+        w4 = w3.copy()
+        w4[i,j, 0] = w3[i,j, 0] - grad_p[i,j, 0]
+        w4[i,j, 1] = w3[i,j, 1] - grad_p[i,j, 1]
+
+        w4 = self.set_velocity_bounds(w4)
+        self.logger.print_vector("New w4 x: ", w4[:,:,0])
+        self.logger.print_vector("New w4 y: ", w4[:,:,1])
+        res = self.compute_divergence(w4, self.h, self.h, edge_order=1)
+        self.logger.print_vector("Divergence field", res)
         self.logger.print_vector("maximum for later divergence %f", res.max())
         self.logger.print_vector("Maximum found at ", res.argmax())
         return (w4, p)
