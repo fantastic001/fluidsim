@@ -270,11 +270,56 @@ class TestCFDSimulator(unittest.TestCase):
         u = np.zeros([int(dim), int(dim), 2])
         expected = np.zeros([int(dim),int(dim)])
         dt = 0.1
+        
+        u[:,:,0] = 0.1
+        u[:,:,1] = 0.1
+        w, p = simulator.projection(u, dt)
+        nptest.assert_allclose(simulator.compute_divergence(w, h, h, edge_order=1)[2:-2,2:-2], expected[2:-2,2:-2],
+            err_msg="Not equal on constant field without considering boundaries",
+            atol=1e-06
+        )
+        
+        u = np.zeros([dim, dim, 2])
+        u[:,:,0] = x[:,:] / 100
+        u[:,:,1] = y[:,:] / 100
+        initial = np.zeros([dim, dim])
+        initial[:,:] = (x**2 + y**2) / 200
+        w, p = simulator.projection(u, dt, initial=initial)
+        expected = simulator.compute_divergence(simulator.compute_gradient(p, dx=simulator.h, dy=simulator.h, edge_order=1),
+            simulator.h, simulator.h, edge_order=1
+        )
+        nptest.assert_allclose(simulator.compute_divergence(u, simulator.h, simulator.h, edge_order=1)[4:-4,4:-4], expected[4:-4,4:-4],
+            err_msg="Linear system is not converging when given good initial condition (solution)",
+            atol=1e-06
+        )
+        expected[:,:] = 0
+
+        u = np.zeros([dim, dim, 2])
+        u[:,:,0] = x[:,:] / 100
+        u[:,:,1] = y[:,:] / 100
+        w, p = simulator.projection(u, dt)
+        expected = simulator.compute_divergence(simulator.compute_gradient(p, dx=simulator.h, dy=simulator.h, edge_order=1),
+            simulator.h, simulator.h, edge_order=1
+        )
+        nptest.assert_allclose(simulator.compute_divergence(u, simulator.h, simulator.h, edge_order=1)[4:-4,4:-4], expected[4:-4,4:-4],
+            err_msg="Linear system is not converging",
+            atol=1e-06
+        )
+        expected[:,:] = 0
+
+        u = np.zeros([dim, dim, 2])
+        u[:,:,0] = x[:,:] / 100
+        u[:,:,1] = y[:,:] / 100
+        w, p = simulator.projection(u, dt)
+        nptest.assert_allclose(simulator.compute_divergence(w, simulator.h, simulator.h, edge_order=1)[4:-4,4:-4], expected[4:-4,4:-4],
+            err_msg="Not eqaul on whole for linear field without considering boundaries",
+            atol=1e-05
+        )
 
         u[:,:,0] = 0.1
         u[:,:,1] = 0.1
         w, p = simulator.projection(u, dt)
-        nptest.assert_allclose(simulator.compute_divergence(w), expected,
+        nptest.assert_allclose(simulator.compute_divergence(w, h, h, edge_order=1), expected,
             err_msg="Not equal on constant field",
             atol=1e-06
         )
@@ -282,33 +327,25 @@ class TestCFDSimulator(unittest.TestCase):
         u[:,:,0] = y/10
         u[:,:,1] = x/10
         w, p = simulator.projection(u, dt)
-        nptest.assert_allclose(simulator.compute_divergence(w, simulator.h, simulator.h), expected,
+        nptest.assert_allclose(simulator.compute_divergence(w, simulator.h, simulator.h, edge_order=1), expected,
             err_msg="Not eqaul on whole for vortex field",
-            atol=1e-06
-        )
-
-        u[4:-4,4:-4,0] = x[4:-4,4:-4]/10
-        u[4:-4,4:-4,1] = y[4:-4,4:-4]/10
-        w, p = simulator.projection(u, dt)
-        nptest.assert_allclose(simulator.compute_divergence(w, simulator.h, simulator.h), expected,
-            err_msg="Not eqaul on whole for field not at boundaries",
-            atol=1e-06
+            atol=1e-04
         )
 
         u[:,:,0] = (x**2 + y**2) / 100
         u[:,:,1] = (2*x**2 + y**2) / 100
         w, p = simulator.projection(u, dt)
-        nptest.assert_allclose(simulator.compute_divergence(w, simulator.h, simulator.h), expected,
+        nptest.assert_allclose(simulator.compute_divergence(w, simulator.h, simulator.h, edge_order=1), expected,
             err_msg="Not eqaul on whole for radial field",
-            atol=1e-03
+            atol=1e-05
         )
 
         u[:,:,0] = x/10
         u[:,:,1] = y/10
         w, p = simulator.projection(u, dt)
-        nptest.assert_allclose(simulator.compute_divergence(w, simulator.h, simulator.h), expected,
-            err_msg="Not equal on constant field",
-            atol=1e-06
+        nptest.assert_allclose(simulator.compute_divergence(w, simulator.h, simulator.h, edge_order=1), expected,
+            err_msg="Not equal on linear field",
+            atol=1e-04
         )
         
         # we expect symmatric response to symmetric input
