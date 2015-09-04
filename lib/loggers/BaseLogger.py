@@ -35,6 +35,11 @@ class BaseLogger(object):
             if full:
                 self.my_print(str(v.tolist()))
             else:
-                self.my_print(str(v))
+                if len(v.shape) >= 2:
+                    n,m = v.shape 
+                    if n > 10 and m>10:
+                        self.my_print(str(v[::11, ::11]))
+                else:
+                    self.my_print(str(v))
             if self.DEBUG_BREAK:
                 self.my_break()
