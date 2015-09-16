@@ -10,6 +10,8 @@ import scipy.sparse.linalg
 
 import os.path
 
+from ..utils import staggered
+
 class CFDSimulator(BaseSimulator):
     
     def get_boundaries_hash(self):
@@ -344,26 +346,33 @@ class CFDSimulator(BaseSimulator):
         return p
 
     def projection(self, w3, dt):
-        scale = 10
-        div_w3 = self.compute_divergence(w3, self.h, self.h, edge_order=1)
-        div_w3_reshaped = div_w3.reshape(self.size)
-        div_w3_scaled = self.scale_down_field(div_w3_reshaped)
-        self.scale_boundaries(scale=scale)
-        M, c = self.pressure_boundaries(div_w3_scaled.reshape(scale**2))
-        p = self.poisson(M, c)
-        #p = p_.reshape(int(self.n/self.h), int(self.m/self.h))
-        # Set boundaries back 
-        p = p.reshape(scale,scale)
-        
-        p = self.scale_up_field(p, scale=scale)
-        self.rescale_boundaries()
-        grad_p = self.compute_gradient(p, self.h, self.h, edge_order=1)
-        self.logger.print_vector("p = ", p)
-        self.logger.print_vector("grad p_x = ", grad_p[:,:,0])
-        self.logger.print_vector("grad p_y = ", grad_p[:,:,1])
-        w4 = w3 - grad_p 
-        return (w4, p)
+        psolver = staggered.set_solids(self.boundaries)
+        n,m,d = w3.shape
+        # Converting to staggered 
+        u,v = staggered.field_transpose(w3[:,:,0], w3[:,:,1]) 
+        u,v = staggered.to_staggered(u,v)
 
+        u,v = staggered.reset_solids(u,v, self.boundaries)
+        u,v, p = staggered.projection(u,v, psolver, self.boundaries)
+        
+        u,v = staggered.reset_solids(u,v, self.boundaries)
+        
+        print("Divergence error")
+        ubc, vbc = staggered.attach_boundaries(u,v)
+        div = staggered.compute_divergence(ubc, vbc)
+        print(np.abs(div).max())
+
+        # bring 'em back 
+        #ubc, vbc = staggered.attach_boundaries(u,v)
+        ubc,vbc = u,v 
+
+        u, v = staggered.to_centered(ubc, vbc)
+        u,v = staggered.field_transpose(u,v)
+        w4 = w3.copy()
+        w4[:,:,0] = u 
+        w4[:,:,1] = v
+        return (w4, p)
+        
     def advect_substance(self, u, h, path, dt):
         # diffusion constant 
         s = 1
