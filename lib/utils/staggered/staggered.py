@@ -122,6 +122,7 @@ def projection(u,v, psolver, solids):
     p = np.zeros([n,n])
     res = psolver.solve(rhs)
     p[np.logical_not(solids)] = res
+    p = np.around(p, 6)
     #p = res.reshape([n,n])
     u,v = apply_pressure(u,v,p)
     return (u,v,p)
@@ -141,7 +142,7 @@ def reset_solids(u,v, solids):
                 vbc[i,j] = 0
     return (ubc[1:-1, :],vbc[:, 1:-1]) 
 
-def set_solids(solids):
+def set_solids(solids, ret_raw=False):
     n,m = solids.shape
     SI = scipy.sparse.eye(n)
     #Lp_ = scipy.sparse.kron(SI, K1(n, 1)) + scipy.sparse.kron(K1(n, 1), SI)
@@ -169,9 +170,11 @@ def set_solids(solids):
             if not boundary_left(i,j, r, c, solids):
                 Lp[s,s] += 1
                 Lp[s,s-1] = -1
-    Lp[0,0] = 1.5 * Lp[0,0]
+    #Lp[0,0] = 1.5 * Lp[0,0]
     Lp = Lp[np.ix_(nonsolid_indices, nonsolid_indices)]
     psolver = scipy.sparse.linalg.splu(Lp)
+    if ret_raw:
+        return Lp
     return psolver
 
 def boundary_count(i,j, n):
