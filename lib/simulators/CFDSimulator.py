@@ -185,17 +185,21 @@ class CFDSimulator(BaseSimulator):
             for j in range(columns):
                 s = columns * i + j
                 if self.boundaries[i,j]:
-                    A[s,s] = 1
-                    b_x[s] = 0
-                    b_y[s] = 0
+                    A[s,s] = -4
+                    A[s,s+columns] = 1
+                    A[s,s-columns] = 1
+                    A[s,s+1] = 1 
+                    A[s,s-1] = 1
                 if self.boundary(i,j):
-                    A[s,s] = 1
-                    #b_x[s] = 0
-                    #b_y[s] = 0
-                    if self.boundary_up(i,j) or self.boundary_down(i,j):
-                        b_y[s] = 0
-                    if self.boundary_right(i,j) or self.boundary_left(i,j):
-                        b_x[s] = 0
+                    A[s,s] = -4
+                    if not self.boundary_down(i,j):
+                        A[s,s+columns] = 1
+                    if not self.boundary_up(i,j):
+                        A[s,s-columns] = 1
+                    if not self.boundary_right(i,j):
+                        A[s,s+1] = 1 
+                    if not self.boundary_left(i,j):
+                        A[s,s-1] = 1
         return (A,b_x, b_y)
 
     def velocity_boundaries(self, c_x, c_y):
@@ -346,14 +350,13 @@ class CFDSimulator(BaseSimulator):
         return p
 
     def projection(self, w3, dt):
-        psolver = staggered.set_solids(self.boundaries)
         n,m,d = w3.shape
         # Converting to staggered 
         u,v = staggered.field_transpose(w3[:,:,0], w3[:,:,1]) 
         u,v = staggered.to_staggered(u,v)
 
         u,v = staggered.reset_solids(u,v, self.boundaries)
-        u,v, p = staggered.projection(u,v, psolver, self.boundaries)
+        u,v, p = staggered.projection(u,v, self.psolver, self.boundaries)
         
         u,v = staggered.reset_solids(u,v, self.boundaries)
         
@@ -396,6 +399,7 @@ class CFDSimulator(BaseSimulator):
 
     def start(self):
         self.deltas = []
+        self.psolver = staggered.set_solids(self.boundaries)
 
         self.h = 1.0
         self.n, self.m = (self.velocities.shape[0]*self.h, self.velocities.shape[1]*self.h)
