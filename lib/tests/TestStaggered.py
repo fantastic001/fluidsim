@@ -94,10 +94,28 @@ class TestStaggered(unittest.TestCase):
         u,v,p = staggered.projection(u,v,self.psolver, 
             np.zeros([100,100])
         )
+        
+        ubc, vbc = staggered.attach_boundaries(u,v)
+        div = staggered.compute_divergence(ubc, vbc) 
+        nptest.assert_allclose(
+            div[1:-1, 1:-1],
+            np.zeros([98,98]),
+            atol=1e-09,
+            err_msg="Staggered projection does not produce zero divergence in domain"
+        )
+        nptest.assert_allclose(
+            div,
+            np.zeros([100,100]),
+            atol=1e-09,
+            err_msg="Staggered projection does not produce zero divergence on boundaries included"
+        )
+
         dim = 100
         nptest.assert_allclose(
             p[:, 0:dim//2], 
             p[:, dim-1:(dim // 2)-1:-1],
+            rtol=0,
+            atol=1e-13,
             err_msg="pressure not symmetric"
         )
         np.savetxt("symmetry.csv", u[:, 0:dim//2] - u[:, dim-1:(dim // 2)-1:-1], delimiter=",")

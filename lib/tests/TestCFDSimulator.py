@@ -211,8 +211,8 @@ class TestCFDSimulator(unittest.TestCase):
         expected = np.zeros([int(dim/simulator.h),int(dim/simulator.h)])
         dt = 0.1
 
-        u[:,:,0] = 1e+15
-        u[:,:,1] = 1e+15
+        u[:,:,0] = 1e+04
+        u[:,:,1] = 1e+04
         w, p = simulator.projection(u, dt)
         nptest.assert_allclose(simulator.compute_divergence(w, simulator.h, simulator.h), expected, atol=15, rtol=0.1)
         
