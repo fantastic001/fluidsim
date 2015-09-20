@@ -56,8 +56,8 @@ class CFDImplicitSimulator(CFDSimulator):
         w3 = np.zeros([int(self.n/self.h), int(self.m/self.h), 2])
         w3[:,:,0] = w30.reshape([int(self.n/self.h), int(self.m/self.h)])
         w3[:,:,1] = w31.reshape([int(self.n/self.h), int(self.m/self.h)])
-
-        return self.reset_solid_velocities(w3)
+        w3 = np.around(w3, 6)
+        return w3
     
     def perform_advection(self, w1, dt):
         w2 = self.advection(w1, dt)
