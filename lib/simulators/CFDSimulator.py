@@ -355,10 +355,10 @@ class CFDSimulator(BaseSimulator):
         u,v = staggered.field_transpose(w3[:,:,0], w3[:,:,1]) 
         u,v = staggered.to_staggered(u,v)
 
-        u,v = staggered.reset_solids(u,v, self.boundaries)
-        u,v, p = staggered.projection(u,v, self.psolver, self.boundaries)
+        u,v = staggered.reset_solids(u,v, self.boundaries.T)
+        u,v, p = staggered.projection(u,v, self.psolver, self.boundaries.T)
         
-        u,v = staggered.reset_solids(u,v, self.boundaries)
+        u,v = staggered.reset_solids(u,v, self.boundaries.T)
         
         print("Divergence error")
         ubc, vbc = staggered.attach_boundaries(u,v)
@@ -399,7 +399,7 @@ class CFDSimulator(BaseSimulator):
 
     def start(self):
         self.deltas = []
-        self.psolver = staggered.set_solids(self.boundaries)
+        self.psolver = staggered.set_solids(self.boundaries.T)
 
         self.h = 1.0
         self.n, self.m = (self.velocities.shape[0]*self.h, self.velocities.shape[1]*self.h)
