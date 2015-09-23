@@ -1,5 +1,5 @@
 
-def draw_from_function(grid, n, m, func):
+def draw_from_function(grid, n, m, func, params={}):
     """
     Draws boundary 
 
@@ -7,7 +7,7 @@ def draw_from_function(grid, n, m, func):
     """
     for i in range(n):
         for j in range(m):
-            grid[i][j] = func(j,i,n,m)
+            grid[i][j] = func(j,i,n,m, **params)
 
 
 
