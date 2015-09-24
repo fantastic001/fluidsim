@@ -17,7 +17,7 @@ class TestLBMSimulator(unittest.TestCase):
         self.velocities = np.zeros([100, 100, 2])
         self.densities = np.zeros([100, 100])
         self.densities.fill(1.0)
-        self.simulator = LBMSimulator(self.densities, self.velocities, self.boundaries, 3.5)
+        self.simulator = LBMSimulator(self.densities, self.velocities, self.boundaries, self.velocities, 3.5)
 
     def test_step(self):
         self.simulator.step(1.0)

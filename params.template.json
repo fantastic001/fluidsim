@@ -2,7 +2,7 @@
 	"height": "100",
 	"width": "100",
 	"iterations": "100",
-	"velocity": "linear",
+	"force": "linear",
 	"viscosity": 0.000001,
 	"simulator": "lbm", 
 	"domain": "blank",
@@ -12,7 +12,7 @@
 		"maximum": 20,
 		"target_path": "frames"
 	},
-	"velocity_params": 
+	"force_params": 
 	{
 		"intensity": 200,
 		"x": -1,

@@ -23,8 +23,8 @@ class SimpleSimulator(BaseSimulator):
 class TestBaseSimulator(unittest.TestCase):
     
     def setUp(self):
-        self.p =np.zeros([2,2])
-        self.simulator = SimpleSimulator(self.p, np.zeros([2, 2, 2]), np.zeros([2,2]), 1.0)
+        self.p = np.zeros([2,2])
+        self.simulator = SimpleSimulator(self.p, np.zeros([2, 2, 2]), np.zeros([2,2]), np.zeros([2,2, 2]), 1.0)
 
     def test_start(self):
         self.assertTrue(self.simulator.started)

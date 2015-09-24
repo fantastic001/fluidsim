@@ -22,7 +22,11 @@ class LBMSimulator(BaseSimulator):
         
 
     def calculate_feq(self):
-        u = self.velocities
+        u0 = self.velocities[:,:,0] + self.omega*self.forces[:,:,0] / self.densities
+        u1 = self.velocities[:,:,1] + self.omega*self.forces[:,:,1] / self.densities
+        u = self.velocities.copy()
+        u[:,:,0] = u0 
+        u[:,:,1] = u1
         u2 = u[:,:,0]*u[:,:,0] + u[:,:,1]*u[:,:,1]
         one = np.ones([self.n, self.m])
         for a in range(9):

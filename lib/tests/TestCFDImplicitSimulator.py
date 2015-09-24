@@ -26,7 +26,7 @@ class TestCFDImplicitSimulator(unittest.TestCase):
         
         n,m = size, size
         
-        simulator = CFDImplicitSimulator(np.zeros([size,size]),np.zeros([size,size, 2]),np.zeros([size,size]),0)
+        simulator = CFDImplicitSimulator(np.zeros([size,size]),np.zeros([size,size, 2]),np.zeros([size,size]),np.zeros([size,size,2]),0)
         
         u[:,:,0] = 100*np.ones([n,m])
         u[:,:,1] = 100*np.ones([n,m])
@@ -88,7 +88,7 @@ class TestCFDImplicitSimulator(unittest.TestCase):
     def test_diffusion(self):
         k = 0.000001
         size = 100
-        simulator = CFDImplicitSimulator(np.zeros([size,size]),np.zeros([size,size, 2]),np.zeros([size,size]),k)
+        simulator = CFDImplicitSimulator(np.zeros([size,size]),np.zeros([size,size, 2]),np.zeros([size,size]),np.zeros([size,size,2]),k)
         # construct grid first 
         y, x = np.mgrid[0:size:simulator.h, 0:size:simulator.h]
         u = np.zeros([int(size/simulator.h), int(size/simulator.h), 2])
@@ -150,7 +150,8 @@ class TestCFDImplicitSimulator(unittest.TestCase):
         b = np.zeros([size, size]).astype(bool)
         v = np.zeros([size, size, 2])
         v[:, 0:0.4*size, 0] = np.linspace(size // 10, 0, 40)
-        simulator = CFDImplicitSimulator(np.zeros([size, size]), v, b, k)
+        zeros = v*0
+        simulator = CFDImplicitSimulator(np.zeros([size, size]), zeros, b,v,k)
 
         # after 5 iterations, we have to have symmetry
         for iteration in range(5):
@@ -169,7 +170,8 @@ class TestCFDImplicitSimulator(unittest.TestCase):
         b = (x - 0.495*size)**2 + (y - 0.495*size)**2 <= r**2
         v = np.zeros([size, size, 2])
         v[:, 0:0.4*size, 0] = np.linspace(size // 10, 0, 40)
-        simulator = CFDImplicitSimulator(np.zeros([size, size]), v, b, k)
+        zeros = v*0
+        simulator = CFDImplicitSimulator(np.zeros([size, size]), zeros, b, v, k)
 
         # after 5 iterations, we have to have symmetry
         for iteration in range(5):

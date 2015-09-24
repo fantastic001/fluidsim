@@ -3,11 +3,12 @@ from ..loggers import BaseLogger
 
 class BaseSimulator(object):
     
-    def __init__(self, densities, velocities, boundary, viscosity, logger=None):
+    def __init__(self, densities, velocities, boundary, forces, viscosity, logger=None):
         self.boundaries = boundary 
         self.viscosity = viscosity
         self.densities = densities 
         self.velocities = velocities
+        self.forces = forces
         if logger != None:
             self.logger = logger 
         else:

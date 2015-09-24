@@ -14,7 +14,7 @@ class TestCFDExplicitSimulator(unittest.TestCase):
         pass
     
     def test_advection(self):
-        simulator = CFDExplicitSimulator(np.zeros([10,10]),np.zeros([10,10, 2]),np.zeros([10,10]),0)
+        simulator = CFDExplicitSimulator(np.zeros([10,10]),np.zeros([10,10, 2]),np.zeros([10,10]), np.zeros([10,10,2]),0)
         # construct grid first 
         y, x = np.mgrid[0:10:simulator.h, 0:10:simulator.h]
         u = np.zeros([int(10/simulator.h), int(10/simulator.h), 2])

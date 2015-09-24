@@ -408,12 +408,6 @@ class CFDSimulator(BaseSimulator):
         
         self.pressure = np.zeros([int(self.n/self.h), int(self.m/self.h)])
 
-        self.forces = 10*self.velocities 
-        self.velocities.fill(0)
-        # Set forces :)))
-        #for fi in range(int(self.n/self.h)):
-        #    self.forces[fi, :, 0] = np.linspace(100, 0, self.m/self.h)
-        
         self.y, self.x = np.mgrid[0:int(self.n), 0:int(self.m)]
         self.A, self.I, self.size = self.get_laplacian_operator()
         self.bmap = np.zeros([int(self.n/self.h), int(self.m/self.h)])
