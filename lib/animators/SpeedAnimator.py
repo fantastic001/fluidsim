@@ -10,7 +10,7 @@ import os.path
 
 class SpeedAnimator(BaseAnimator):
     def start(self, simulator, **kwargs):
-        self.maximum = int(kwargs.get("maximum", 20))
+        self.maximum = float(kwargs.get("maximum", 20))
         self.target_path = kwargs.get("target_path", "frames/")
 
         if not os.path.isdir(self.target_path):
