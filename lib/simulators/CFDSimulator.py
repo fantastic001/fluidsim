@@ -13,20 +13,6 @@ import os.path
 from ..utils import staggered
 
 class CFDSimulator(BaseSimulator):
-    
-    def get_boundaries_hash(self):
-        if (self.boundaries == 0).all():
-            return ""
-        else:
-            return str(hash(self.boundaries.tostring()))
-
-    def save_sparse_csr(self, filename,array):
-        a = array.tocsr()
-        np.savez(filename,data = a.data ,indices=a.indices, indptr =a.indptr, shape=a.shape)
-
-    def load_sparse_csr(self, filename):
-        loader = np.load(filename)
-        return scipy.sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape=loader["shape"]).tolil()
 
     def compute_speed(self, v):
         return np.sqrt(v[:, :, 0]**2 + v[:, :, 1]**2)
@@ -82,29 +68,11 @@ class CFDSimulator(BaseSimulator):
     def boundary(self, i,j):
         return self.boundary_up(i,j) or self.boundary_left(i,j) or self.boundary_right(i,j) or self.boundary_down(i,j)
 
-    def get_scaling_condition(self, scale=10):
-        n,m = (int(self.n), int(self.m))
-        cond = np.zeros([int(self.n*self.m), int(self.n*self.m)], dtype=np.bool)
-        for i in range(n):
-            for j in range(m):
-                for k in range(n):
-                    for l in range(m):
-                        if i % (scale+1) == 0 and j % (scale+1) == 0 and k % (scale+1) == 0 and l % (scale+1) == 0:
-                            cond[int(i*self.m) + j, int(k*self.m) + l] = True
-        return cond
-
     def get_laplacian_operator(self):
-        cache_filename = "cache/A-%d-%d-%f%s.npz" % (self.n, self.m, self.h, self.get_boundaries_hash())
-        
         # Computing laplacian operator 
         size = int(self.n/self.h) * int(self.m / self.h)
         c = int(self.m/self.h)
         I = scipy.sparse.eye(size)
-
-        # see if there's cached one 
-        if os.path.isfile(cache_filename):
-            A = self.load_sparse_csr(cache_filename)
-            return (A, I, size)
 
         A = scipy.sparse.lil_matrix((size, size))
         for iiy1 in range(int(self.n)):
@@ -116,7 +84,6 @@ class CFDSimulator(BaseSimulator):
                     A[s, s-1] = 1
                     A[s,s+c] = 1 
                     A[s,s-c] = 1
-        self.save_sparse_csr(cache_filename, A)
         return (A, I, size)
     
     def get_pressure_laplacian_operator(self, scale=10):
@@ -168,14 +135,6 @@ class CFDSimulator(BaseSimulator):
         return (Ap,b)
     
     def get_velocity_laplacian_operator(self, M):
-        A_cache_filename = "cache/Av-%d-%d-%f%s.npz" % (self.n, self.m, self.h, self.get_boundaries_hash())
-        bx_cache_filename = "cache/bv_x-%d-%d-%f%s.npz" % (self.n, self.m, self.h, self.get_boundaries_hash())
-        by_cache_filename = "cache/bv_y-%d-%d-%f%s.npz" % (self.n, self.m, self.h, self.get_boundaries_hash())
-        if os.path.isfile(A_cache_filename) and os.path.isfile(bx_cache_filename) and os.path.isfile(by_cache_filename):
-            A = self.load_sparse_csr(A_cache_filename)
-            bx = np.array(self.load_sparse_csr(bx_cache_filename).todense()).reshape(self.size)
-            by = np.array(self.load_sparse_csr(by_cache_filename).todense()).reshape(self.size)
-            return (A,bx,by)
         A = M.copy()
         b_x = np.ones(self.size)
         b_y = np.ones(self.size)
@@ -214,141 +173,9 @@ class CFDSimulator(BaseSimulator):
                     w[i,j] = 0
         return w 
     
-    def reset_edge_pressure(self, p_):
-        p = p_.copy()
-        n,m = p.shape
-        for i in range(n):
-            for j in range(m):
-                if self.boundary_left(i,j):
-                    p[i,j] = p_[i,j+1]
-                elif self.boundary_right(i,j):
-                    p[i,j] = p_[i,j-1]
-                elif self.boundary_up(i,j):
-                    p[i,j] = p_[i+1,j]
-                elif self.boundary_down(i,j):
-                    p[i,j] = p_[i-1,j]
-                else:
-                    pass
-        return p 
-
-    def reset_solid_gradient(self, gp_):
-        gp = gp_.copy()
-        n,m,d = gp.shape 
-        for i in range(n):
-            for j in range(m):
-                if self.boundaries[i,j]:
-                    gp[i,j,0] = 0 
-                    gp[i,j,1] = 0
-                if self.boundary_left(i,j) or self.boundary_right(i,j):
-                    gp[i,j,0] = 0
-                if self.boundary_up(i,j) or self.boundary_down(i,j):
-                    gp[i,j,1] = 0
-        return gp 
-
     def add_force(self, v, dt, f):
         return v + dt*f
-
-    def scale_down(self, A, b, scale=10):
-        cond = None
-        if scale != 10:
-            cond = self.get_scaling_condition(scale=scale)
-        else:
-            cond = self.cond
-        row_step = int(self.n/scale) + 1
-        column_step = int(self.m / scale) + 1
-        step = int(self.size/scale**2) + 1
-        b_normal = b.reshape(int(self.n), int(self.m))
-        mark_x = np.zeros([int(self.n), int(self.m)])
-        mark_x[:,::column_step].fill(1)
-        mark_y = np.zeros([int(self.n), int(self.m)])
-        mark_y[::row_step, :].fill(1)
-        condition = np.logical_and(mark_x,mark_y)
-
-        c = b_normal[condition]
-
-        #A4D = A.reshape([self.n, self.m, self.n, self.m])
-        B = None 
-        if scale == 10:
-            B = self.Ap_scaled
-        else:
-            B = A[cond].todense().reshape([scale**2, scale**2])
-        #B = A[0:self.n:row_step, 0:self.m:column_step, 0:self.n:row_step, 0:self.m:column_step].reshape([100, 100])
-        return (B, c)
-
-    def scale_up(self, p, scale=10):
-        p = p.reshape(scale, scale)
-        ax = np.linspace(0, self.m-1, scale)
-        ay = np.linspace(0, self.n-1, scale)
-        func = scipy.interpolate.RectBivariateSpline(ax,ay, p)
-        
-        y,x = np.mgrid[0:int(self.n), 0:int(self.m)]
-
-        return func.ev(y,x)
     
-    def scale_down_field(self, b, scale=10):
-        row_step = int(self.n/scale) + 1
-        column_step = int(self.m / scale) + 1
-        b_normal = b.reshape(int(self.n), int(self.m))
-        mark_x = np.zeros([int(self.n), int(self.m)]).astype(bool)
-        mark_x[:,::column_step] = True
-        mark_y = np.zeros([int(self.n), int(self.m)]).astype(bool)
-        mark_y[::row_step, :] = True
-        condition = np.logical_and(mark_x,mark_y)
-
-        c = b_normal[condition].reshape([scale, scale])
-        return c
-
-    def scale_up_field(self, p, scale=10):
-        p = p.reshape(scale, scale)
-        ax = np.linspace(0, self.m-1, scale)
-        ay = np.linspace(0, self.n-1, scale)
-        func = scipy.interpolate.RectBivariateSpline(ax,ay, p)
-        return func.ev(self.y, self.x)
-    
-    def scale_boundaries(self, scale=10):
-        self.tmp_boundaries = self.boundaries.copy()
-        #self.boundaries = self.scale_down_field(self.boundaries, scale=scale)
-        b = np.zeros([scale, scale], dtype=np.bool)
-        stepr = int(self.n / scale) + 1
-        stepc = int(self.m / scale) + 1
-        for i in range(0, scale):
-            for j in range(0, scale):
-                if self.boundaries[i*stepr, j*stepc]:
-                    b[i,j] = True
-        for i in range(1, scale):
-            for j in range(1, scale):
-                has_solids = self.boundaries[(i-1)*stepr+1:i*stepr, (j-1)*stepc+1:j*stepc].any()
-                if has_solids:
-                    b[i,j] = True
-                    b[i-1,j] = True
-                    b[i,j-1] = True
-                    b[i-1,j-1] = True
-        self.boundaries = b 
-        self.logger.print_vector("Scaled boundaries", b)
-
-    def rescale_boundaries(self):
-        self.boundaries = self.tmp_boundaries.copy()
-
-    def poisson(self, A, w):
-        """
-        #S = A * scipy.sparse.identity(A.shape[0])
-        S = np.tril(A)
-        # T = S - A
-
-        # S = np.tril(A)
-        T = S - A
-        # B = scipy.sparse.linalg.inv(S).dot(T)
-        # el, ev = scipy.sparse.linalg.eigs(B)
-        N = A.shape[0]
-        p = np.zeros(N)
-        w = np.array(w).reshape(N)
-        for i in range(40):
-            Tp = np.array(T.dot(p)).reshape(N)
-            p = np.linalg.solve(S, w + Tp)
-        """
-        p = np.linalg.solve(A, w)
-        return p
-
     def projection(self, w3, dt):
         n,m,d = w3.shape
         # Converting to staggered 
@@ -376,29 +203,7 @@ class CFDSimulator(BaseSimulator):
         w4[:,:,1] = v
         return (w4, p)
         
-    def advect_substance(self, u, h, path, dt):
-        # diffusion constant 
-        s = 1
-        k = 1
-        self.scale_boundaries()
-        ux = self.scale_down_field(u[:,:,0])
-        uy = self.scale_down_field(u[:,:,1])
-        h = self.scale_down_field(h)
-        grad_h = self.compute_gradient(h, self.h, self.h)
-        a = ux*grad_h[:,:,0] + uy*grad_h[:,:,1]
-        uxh = h*ux
-        uyh = h*uy
-        uh = np.zeros([h.shape[0], h.shape[1], 2])
-        uh[:,:,0] = uxh
-        uh[:,:,1] = uyh
-        duh = self.compute_divergence(uh, self.h, self.h)
-        lh = self.compute_divergence(self.compute_gradient(h, self.h, self.h), self.h, self.h)
-        res = h - s*dt*a + k*lh*dt
-        self.rescale_boundaries()
-        return self.scale_up_field(res) * self.non_boundaries
-
     def start(self):
-        self.deltas = []
         self.psolver = staggered.set_solids(self.boundaries.T)
 
         self.h = 1.0
@@ -472,14 +277,11 @@ class CFDSimulator(BaseSimulator):
         self.logger.plot_field(w4, "%d-w4" % self.iteration)
         self.logger.print_vector("w4 x error:", np.abs(w4[:,:,0]).max())
         self.logger.print_vector("w4 y error:", np.abs(w4[:,:,1]).max())
-
-        #self.densities = self.advect_substance(self.velocities, self.densities, self.path, dt)
         
         self.logger.print_vector("div v", self.compute_divergence(self.velocities, self.h, self.h))
         
         self.logger.print_vector("divergence error", np.abs(self.compute_divergence(self.velocities, self.h, self.h)).max())
 
-        #self.forces.fill(0)
         self.logger.print_vector("Substance sum: ", self.densities.sum())
         self.logger.print_vector("Substance: ", self.densities)
         self.iteration += 1
