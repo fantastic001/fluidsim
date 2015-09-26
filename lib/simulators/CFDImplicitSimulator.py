@@ -36,18 +36,25 @@ class CFDImplicitSimulator(CFDSimulator):
         #scale = 10
         w2_x = w2[:,:,0].reshape(self.size)
         w2_y = w2[:,:,1].reshape(self.size)
-        M, c_x, c_y = self.velocity_boundaries(w2_x, w2_y)
-        L = self.I - (self.viscosity * dt)*M
+        
         #self.scale_boundaries(scale=scale)
         #L1, c_x = self.scale_down(L, c_x)
         #L2, c_y = self.scale_down(L, c_y)
 
-        #self.logger.print_vector("L1", L1.todense())
-        #self.logger.print_vector("L2", L2.todense())
-        self.logger.print_vector("c_x", c_x)
-        self.logger.print_vector("c_y", c_y)
-        w30 = scipy.sparse.linalg.spsolve(L, c_x)
-        w31 = scipy.sparse.linalg.spsolve(L, c_y)
+        w30 = None
+        w31 = None
+        if dt == 0.1:
+            w30 = self.vsolver.solve(w2_x)
+            w31 = self.vsolver.solve(w2_y)
+        else:
+            M, c_x, c_y = self.velocity_boundaries(w2_x, w2_y)
+            L = self.I - (self.viscosity * dt)*self.Av
+
+            self.logger.print_vector("c_x", c_x)
+            self.logger.print_vector("c_y", c_y)
+            
+            w30 = scipy.sparse.linalg.spsolve(L, w2_x)
+            w31 = scipy.sparse.linalg.spsolve(L, w2_y)
         
         #w30 = self.scale_up(w30)
         #w31 = self.scale_up(w31)

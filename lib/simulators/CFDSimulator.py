@@ -219,6 +219,8 @@ class CFDSimulator(BaseSimulator):
         self.iteration = 0
         
         self.Av, self.bv_x, self.bv_y = self.get_velocity_laplacian_operator(self.A)
+        L = self.I - (self.viscosity * 0.1)*self.Av
+        self.vsolver = scipy.sparse.linalg.splu(L)
     
     def finish(self):
         #plt.plot(np.diff(self.deltas))
