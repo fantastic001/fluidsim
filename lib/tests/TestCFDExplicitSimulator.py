@@ -25,25 +25,39 @@ class TestCFDExplicitSimulator(unittest.TestCase):
         u[:,:,0] = 100*np.ones([n,m])
         u[:,:,1] = 100*np.ones([n,m])
         res = simulator.advection_primitive(u)
-        nptest.assert_array_almost_equal(res, expected)
+        nptest.assert_array_almost_equal(
+            res[1:-1,1:-1], 
+            expected[1:-1,1:-1]
+        )
 
         u[:,:,0] = x
         u[:,:,1] = y
         expected[:,:,0] = x
         expected[:,:,1] = y
         res = simulator.advection_primitive(u)
-        nptest.assert_array_almost_equal(res, expected)
+        nptest.assert_array_almost_equal(
+            res[1:-1,1:-1], 
+            expected[1:-1,1:-1]
+        )
 
         u[:,:,0] = x*y
         u[:,:,1] = x*y
         expected[:,:,0] = x*y**2 + y*x**2
         expected[:,:,1] = x*y**2 + y*x**2
         res = simulator.advection_primitive(u)
-        nptest.assert_allclose(res, expected, rtol=0.2)
+        nptest.assert_allclose(
+            res[1:-1,1:-1], 
+            expected[1:-1,1:-1], 
+            rtol=0.2
+        )
 
         u[:,:,0] = x**2 + y**2
         u[:,:,1] = x*y
         expected[:,:,0] = 2*x*(x**2 + y**2) + 2*y*(x*y) 
         expected[:,:,1] = y*(x**2 + y**2) + y*x**2
         res = simulator.advection_primitive(u)
-        nptest.assert_allclose(res, expected, rtol=0.2)
+        nptest.assert_allclose(
+            res[1:-1,1:-1], 
+            expected[1:-1,1:-1], 
+            rtol=0.2
+        )
