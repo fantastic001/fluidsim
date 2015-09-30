@@ -30,6 +30,7 @@ h = 1.0
 m,n = int(params.get("height", 100)), int(params.get("width", 100))
 num_iters = int(params.get("iterations", 100))
 viscosity = float(params.get("viscosity", 0.000001))
+step = float(params.get("step", 0.1))
 
 animator_router = Router()
 animator_router.register(ImageAnimator, "density")
@@ -84,4 +85,4 @@ draw_from_function(b,N,M, domain_func)
 
 simulator = simulator_class(p,np.zeros([N,M, 2]),b,f, viscosity, logger=StandardOutputLogger(**settings.logger_params))
 animator = animator_class(simulator, **animator_params) 
-animator.run(num_iters, step=0.1)
+animator.run(num_iters, step=step)
