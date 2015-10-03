@@ -29,5 +29,5 @@ class SpeedAnimator(BaseAnimator):
         mat[:,:,1] = np.ones([n,m])*nb
         mat[:,:,1] = np.clip(speed, 0, self.maximum) / self.maximum
         plt.imsave(self.target_path + "/figure-" + str(t) + ".png", mat)
-        self.f_avg.write("%d,%f\n" % (t, speed.mean()))
-        self.f_max.write("%d,%f\n" % (t, speed.max()))
+        self.f_avg.write("%d,%f\n" % (t, speed.mean() / self.maximum))
+        self.f_max.write("%d,%f\n" % (t, speed.max() / self.maximum))
