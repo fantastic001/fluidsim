@@ -204,7 +204,9 @@ class CFDSimulator(BaseSimulator):
         return (w4, p)
         
     def start(self):
+        print("Computing psolver")
         self.psolver = staggered.set_solids(self.boundaries.T)
+        print("psolver computed")
 
         self.h = 1.0
         self.n, self.m = (self.velocities.shape[0]*self.h, self.velocities.shape[1]*self.h)
@@ -220,7 +222,9 @@ class CFDSimulator(BaseSimulator):
         
         self.Av, self.bv_x, self.bv_y = self.get_velocity_laplacian_operator(self.A)
         L = self.I - (self.viscosity * 0.1)*self.Av
+        print("Computing vsolver")
         self.vsolver = scipy.sparse.linalg.splu(L)
+        print("vsolver computed")
     
     def finish(self):
         #plt.plot(np.diff(self.deltas))
